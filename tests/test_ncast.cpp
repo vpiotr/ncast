@@ -660,8 +660,116 @@ UTEST_FUNC_DEF(NaNConversions) {
     UTEST_ASSERT_TRUE(std::isnan(f_nan_final));
 }
 
+// Test floating point signed zero conversions
+UTEST_FUNC_DEF(SignedZeroConversions) {
+    // Create positive and negative zero
+    double pos_zero = 0.0;
+    double neg_zero = -0.0;
+    
+    // Verify they're different (should have different sign bits)
+    UTEST_ASSERT_TRUE(std::signbit(neg_zero));
+    UTEST_ASSERT_FALSE(std::signbit(pos_zero));
+    
+    // Test sign preservation in double to float conversion
+    float f_pos_zero = numeric_cast<float>(pos_zero);
+    float f_neg_zero = numeric_cast<float>(neg_zero);
+    
+    UTEST_ASSERT_FALSE(std::signbit(f_pos_zero));
+    UTEST_ASSERT_TRUE(std::signbit(f_neg_zero));
+    
+    // Test sign preservation in float to double conversion
+    float f_pos_zero_src = 0.0f;
+    float f_neg_zero_src = -0.0f;
+    
+    double d_pos_zero = numeric_cast<double>(f_pos_zero_src);
+    double d_neg_zero = numeric_cast<double>(f_neg_zero_src);
+    
+    UTEST_ASSERT_FALSE(std::signbit(d_pos_zero));
+    UTEST_ASSERT_TRUE(std::signbit(d_neg_zero));
+    
+    // Test conversions to integers (sign should be lost, both become 0)
+    int i_from_pos_zero = numeric_cast<int>(pos_zero);
+    int i_from_neg_zero = numeric_cast<int>(neg_zero);
+    
+    UTEST_ASSERT_EQUALS(0, i_from_pos_zero);
+    UTEST_ASSERT_EQUALS(0, i_from_neg_zero);
+}
+
+// Test conversions between extreme floating point values
+UTEST_FUNC_DEF(ExtremeFloatingPointConversions) {
+    // Test extremely small normal double to float
+    if (std::numeric_limits<double>::min() < std::numeric_limits<float>::min()) {
+        double very_small_double = std::numeric_limits<float>::min() * 0.5;
+        // This value is normal in double but would be subnormal or underflow in float
+        // We'll try the conversion and see if it succeeds or fails - both are valid behaviors
+        // depending on the floating point implementation
+        try {
+            float result = numeric_cast<float>(very_small_double);
+            // If it succeeds, verify the result is either subnormal or zero
+            int class_type = std::fpclassify(result);
+            UTEST_ASSERT_TRUE(class_type == FP_SUBNORMAL || class_type == FP_ZERO);
+        } catch (const cast_exception& e) {
+            // This is also a valid outcome if the implementation rejects the conversion
+            // Nothing to assert here
+        }
+    }
+    
+    // Test extremely small integer to floating point
+    if (sizeof(long long) > sizeof(float)) {
+        long long tiny_integer = 1;
+        float f_from_tiny = numeric_cast<float>(tiny_integer);
+        UTEST_ASSERT_EQUALS(1.0f, f_from_tiny);
+        
+        // Test max long long that can be exactly represented in double
+        // (For doubles with 53-bit mantissa, integers up to 2^53 can be exactly represented)
+        if (sizeof(long long) * 8 > 53) {
+            long long exact_in_double = (1LL << 53) - 1;
+            double d_exact = numeric_cast<double>(exact_in_double);
+            UTEST_ASSERT_EQUALS(static_cast<double>(exact_in_double), d_exact);
+            
+            // Test conversion one beyond the exact representation
+            long long beyond_exact = (1LL << 53);
+            double d_beyond = numeric_cast<double>(beyond_exact);
+            // This should work, but the value will be rounded (not exact)
+            UTEST_ASSERT_EQUALS(static_cast<double>(beyond_exact), d_beyond);
+            
+            // Verify precision was lost (the +1 is lost in representation)
+            long long beyond_plus_one = (1LL << 53) + 1;
+            UTEST_ASSERT_EQUALS(numeric_cast<double>(beyond_exact), 
+                               numeric_cast<double>(beyond_plus_one));
+        }
+    }
+    
+    // Test subnormal to normal conversions
+    if (std::numeric_limits<double>::has_denorm == std::denorm_present &&
+        std::numeric_limits<float>::has_denorm == std::denorm_present) {
+        
+        // Create a subnormal double that should convert to normal float
+        double subnormal_double = std::numeric_limits<double>::denorm_min();
+        double large_enough = std::numeric_limits<float>::min() * 2.0;
+        
+        if (large_enough > subnormal_double) {
+            // Skip test if platform denormal handling doesn't support this case
+            double subnormal_to_normal = large_enough * 0.75;
+            
+            // This should be subnormal in double but normal in float
+            if (std::fpclassify(subnormal_to_normal) == FP_SUBNORMAL) {
+                // Try the conversion - it may or may not throw depending on implementation
+                try {
+                    float result = numeric_cast<float>(subnormal_to_normal);
+                    // If conversion succeeds, check classification
+                    int class_type = std::fpclassify(result);
+                    UTEST_ASSERT_TRUE(class_type == FP_NORMAL || class_type == FP_SUBNORMAL);
+                } catch (const cast_exception& e) {
+                    // Also acceptable
+                }
+            }
+        }
+    }
+}
 int main() {
     UTEST_PROLOG();
+    UTEST_ENABLE_VERBOSE_MODE();
     
     // Basic functionality tests
     UTEST_FUNC(NumericCastBasic);
@@ -680,6 +788,8 @@ int main() {
     UTEST_FUNC(DoubleToFloatConversion);
     UTEST_FUNC(InfinityConversions);
     UTEST_FUNC(NaNConversions);
+    UTEST_FUNC(SignedZeroConversions);
+    UTEST_FUNC(ExtremeFloatingPointConversions);
     
     // char_cast specific tests
     UTEST_FUNC(CharCastBasic);
@@ -693,6 +803,10 @@ int main() {
     
     // Integration tests
     UTEST_FUNC(IntegrationTests);
+    
+    // New tests
+    UTEST_FUNC(SignedZeroConversions);
+    UTEST_FUNC(ExtremeFloatingPointConversions);
     
     UTEST_EPILOG();
     

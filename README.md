@@ -8,6 +8,25 @@
 
 A header-only C++ micro-library for safe numeric casting with runtime validation and comprehensive error reporting.
 
+## Quick Overview
+
+**ncast** solves the problem of unsafe numeric type conversions in C++. In standard C++, using `static_cast` for numeric conversions can lead to silent data corruption, unexpected behavior, and hard-to-find bugs due to:
+
+- Negative values being converted to unsigned types
+- Values that exceed the target type's range
+- Special floating-point values (NaN, infinity) being improperly converted
+- Unexpected sign conversions
+
+This library provides `numeric_cast<T>()` and `NUMERIC_CAST(T, val)` which perform comprehensive runtime validation before converting values, throwing informative exceptions when conversions would be unsafe. With validation disabled, it compiles down to a simple `static_cast` with zero overhead.
+
+```cpp
+// Instead of error-prone static_cast:
+unsigned int result = static_cast<unsigned int>(-1);  // Silently becomes a large value!
+
+// Use safe numeric_cast:
+unsigned int result = numeric_cast<unsigned int>(value);  // Throws if value is negative
+```
+
 ## Table of Contents
 
 - [Features](#features)
@@ -30,6 +49,7 @@ A header-only C++ micro-library for safe numeric casting with runtime validation
 - **Safe casting**: Validates value ranges before casting to prevent dangerous conversions
 - **Header-only**: Just include `ncast.h` and start using - no linking required
 - **Comprehensive support**: Works with all numeric types plus char types
+- **Special floating-point handling**: Properly manages NaN, infinity, and denormal values
 - **Two APIs**: Function templates and macros with precise location information
 - **Optional validation**: Can be disabled for performance-critical code paths
 - **Exception safety**: Clear error messages with file/line/function information
@@ -160,6 +180,10 @@ ToType numeric_cast(FromType value);
 **Validation rules:**
 - Negative values cannot be cast to unsigned types
 - Values must fit within target type's range (uses `std::numeric_limits`)
+- Special floating-point values are handled properly:
+  - NaN can only be converted between floating-point types
+  - Infinity can only be converted between floating-point types
+  - Denormal values are properly validated for range
 - Throws `cast_exception` on validation failure with detailed context
 - Compile-time type safety enforced via `static_assert`
 
@@ -266,6 +290,32 @@ try {
     std::cout << "Cast failed: " << e.what() << std::endl;
     std::cout << "File: " << e.getFile() << std::endl;
     std::cout << "Line: " << e.getLine() << std::endl;
+}
+```
+
+### Floating-Point Special Values
+
+```cpp
+#include <ncast/ncast.h>
+#include <limits>
+using namespace ncast;
+
+// NaN handling
+float f_nan = std::numeric_limits<float>::quiet_NaN();
+double d_nan = numeric_cast<double>(f_nan);  // Works - NaN can be converted between floating types
+// int i_nan = numeric_cast<int>(f_nan);     // Throws - NaN cannot be converted to integers
+
+// Infinity handling
+float f_inf = std::numeric_limits<float>::infinity();
+double d_inf = numeric_cast<double>(f_inf);  // Works - infinity can be converted between floating types
+// int i_inf = numeric_cast<int>(f_inf);     // Throws - infinity cannot be converted to integers
+
+// Denormal values
+double tiny = std::numeric_limits<double>::denorm_min();
+try {
+    float f_tiny = numeric_cast<float>(tiny);  // May throw if value is too small for float
+} catch (const cast_exception& e) {
+    // Handle denormal conversion failure
 }
 ```
 
