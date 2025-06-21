@@ -144,130 +144,140 @@ namespace detail {
         static const bool value = std::is_arithmetic<T>::value;
     };
 
+    // Base implementation declaration
+    template<typename ToType, typename FromType, 
+             bool IsFromFloatingPoint = std::is_floating_point<FromType>::value,
+             bool IsToFloatingPoint = std::is_floating_point<ToType>::value>
+    struct numeric_cast_validator;
+
     /**
-     * @brief Helper function to perform safe numeric casting with validation
+     * @brief Helper to check NaN and infinity in floating point source types
      */
-    template<typename ToType, typename FromType>
-    ToType numeric_cast_impl(FromType value, const char* file, int line, const char* function) {
-        static_assert(is_numeric_or_char<ToType>::value, "ToType must be a numeric type or char");
-        static_assert(is_numeric_or_char<FromType>::value, "FromType must be a numeric type or char");
-        
-#if !NCAST_ENABLE_VALIDATION
-        // Suppress unused parameter warnings when validation is disabled
-        (void)file;
-        (void)line;
-        (void)function;
-#endif
-        
-#if NCAST_ENABLE_VALIDATION
-        // Check for signed to unsigned conversion with negative value
-        if (std::is_signed<FromType>::value && std::is_unsigned<ToType>::value) {
-            if (value < 0) {
-                std::ostringstream ss;
-                ss << "Attempt to cast negative value (" << value 
-                   << ") to unsigned type";
-                throw cast_exception(ss.str(), file, line, function);
-            }
+    template<typename FromType>
+    bool check_floating_point_special(FromType value, const char* file, int line, const char* function) {
+        // Allow NaN to be converted between floating point types
+        if (std::isnan(value)) {
+            std::ostringstream ss;
+            ss << "Cannot convert NaN to non-floating-point type";
+            throw cast_exception(ss.str(), file, line, function);
         }
         
-        // Check for range overflow/underflow  
-        // Special handling for floating point to avoid long long cast issues
-        if (std::is_floating_point<FromType>::value || std::is_floating_point<ToType>::value) {
-            // Special handling for NaN and infinity
-            if (std::is_floating_point<FromType>::value) {
-                // Allow NaN to be converted between floating point types
-                if (std::isnan(value)) {
-                    if (std::is_floating_point<ToType>::value) {
-                        return static_cast<ToType>(value);
-                    } else {
-                        // NaN to non-floating point types is invalid
-                        std::ostringstream ss;
-                        ss << "Cannot convert NaN to non-floating-point type";
-                        throw cast_exception(ss.str(), file, line, function);
-                    }
-                }
-                
-                // Allow infinity to be converted between any floating point types
-                if (std::is_floating_point<ToType>::value && std::isinf(value)) {
-                    return static_cast<ToType>(value);
-                }
-                
-                // Handle infinity to non-floating point types
-                if (!std::is_floating_point<ToType>::value && std::isinf(value)) {
-                    std::ostringstream ss;
-                    ss << "Cannot convert infinity to non-floating-point type";
-                    throw cast_exception(ss.str(), file, line, function);
-                }
+        // Handle infinity to non-floating point types
+        if (std::isinf(value)) {
+            std::ostringstream ss;
+            ss << "Cannot convert infinity to non-floating-point type";
+            throw cast_exception(ss.str(), file, line, function);
+        }
+        
+        return true;
+    }
+
+    // Specialization for floating-point source and floating-point target
+    template<typename ToType, typename FromType>
+    struct numeric_cast_validator<ToType, FromType, true, true> {
+        static ToType validate(FromType value, const char* file, int line, const char* function) {
+            // Allow NaN and infinity to be converted between floating point types
+            if (std::isnan(value) || std::isinf(value)) {
+                return static_cast<ToType>(value);
             }
             
-            // For floating point range checks, use direct comparisons with numeric_limits
-            // but avoid potential precision issues by careful ordering of operations
-            
-            // Check for overflow first (value exceeds max)
-            if (std::is_floating_point<FromType>::value) {
-                // If source is floating point, compare directly with the target max
-                if (std::numeric_limits<ToType>::has_infinity && 
-                    std::numeric_limits<FromType>::has_infinity) {
-                    // Handle infinities specially when both types support them
-                    if (!std::isinf(value) && value > std::numeric_limits<ToType>::max()) {
-                        std::ostringstream ss;
-                        ss << "Value (" << value << ") exceeds maximum for target type ("
-                          << std::numeric_limits<ToType>::max() << ")";
-                        throw cast_exception(ss.str(), file, line, function);
-                    }
-                } else if (value > static_cast<FromType>(std::numeric_limits<ToType>::max())) {
-                    std::ostringstream ss;
-                    ss << "Value (" << value << ") exceeds maximum for target type ("
-                       << std::numeric_limits<ToType>::max() << ")";
-                    throw cast_exception(ss.str(), file, line, function);
-                }
-            } else if (std::is_floating_point<ToType>::value) {
-                // If target is floating point but source is integral
-                // We need to be careful with large integers that might exceed floating point precision
-                // Use a multi-step approach to avoid issues with mixed type comparisons
-                if (value > 0) {
-                    // For positive values
-                    if (static_cast<double>(value) > static_cast<double>(std::numeric_limits<ToType>::max())) {
-                        std::ostringstream ss;
-                        ss << "Value (" << value << ") exceeds maximum for target type ("
-                           << std::numeric_limits<ToType>::max() << ")";
-                        throw cast_exception(ss.str(), file, line, function);
-                    }
-                }
+            // Check for overflow/underflow
+            if (value > static_cast<FromType>(std::numeric_limits<ToType>::max())) {
+                std::ostringstream ss;
+                ss << "Value (" << value << ") exceeds maximum for target type ("
+                   << std::numeric_limits<ToType>::max() << ")";
+                throw cast_exception(ss.str(), file, line, function);
             }
             
-            // Check for underflow (value below lowest)
-            if (std::is_floating_point<FromType>::value) {
-                // If source is floating point, compare directly with the target lowest
-                if (std::numeric_limits<ToType>::has_infinity && 
-                    std::numeric_limits<FromType>::has_infinity) {
-                    // Handle infinities specially when both types support them
-                    if (!std::isinf(value) && value < std::numeric_limits<ToType>::lowest()) {
-                        std::ostringstream ss;
-                        ss << "Value (" << value << ") is below minimum for target type ("
-                           << std::numeric_limits<ToType>::lowest() << ")";
-                        throw cast_exception(ss.str(), file, line, function);
-                    }
-                } else if (value < static_cast<FromType>(std::numeric_limits<ToType>::lowest())) {
-                    std::ostringstream ss;
-                    ss << "Value (" << value << ") is below minimum for target type ("
-                       << std::numeric_limits<ToType>::lowest() << ")";
-                    throw cast_exception(ss.str(), file, line, function);
-                }
-            } else if (std::is_floating_point<ToType>::value) {
-                // If target is floating point but source is integral
+            if (value < static_cast<FromType>(std::numeric_limits<ToType>::lowest())) {
+                std::ostringstream ss;
+                ss << "Value (" << value << ") is below minimum for target type ("
+                   << std::numeric_limits<ToType>::lowest() << ")";
+                throw cast_exception(ss.str(), file, line, function);
+            }
+            
+            return static_cast<ToType>(value);
+        }
+    };
+
+    // Specialization for floating-point source and integral target
+    template<typename ToType, typename FromType>
+    struct numeric_cast_validator<ToType, FromType, true, false> {
+        static ToType validate(FromType value, const char* file, int line, const char* function) {
+            // Check for special values
+            if (std::isnan(value)) {
+                std::ostringstream ss;
+                ss << "Cannot convert NaN to non-floating-point type";
+                throw cast_exception(ss.str(), file, line, function);
+            }
+            
+            if (std::isinf(value)) {
+                std::ostringstream ss;
+                ss << "Cannot convert infinity to non-floating-point type";
+                throw cast_exception(ss.str(), file, line, function);
+            }
+            
+            // Check for overflow/underflow
+            if (value > static_cast<FromType>(std::numeric_limits<ToType>::max())) {
+                std::ostringstream ss;
+                ss << "Value (" << value << ") exceeds maximum for target type ("
+                   << std::numeric_limits<ToType>::max() << ")";
+                throw cast_exception(ss.str(), file, line, function);
+            }
+            
+            if (value < static_cast<FromType>(std::numeric_limits<ToType>::lowest())) {
+                std::ostringstream ss;
+                ss << "Value (" << value << ") is below minimum for target type ("
+                   << std::numeric_limits<ToType>::lowest() << ")";
+                throw cast_exception(ss.str(), file, line, function);
+            }
+            
+            return static_cast<ToType>(value);
+        }
+    };
+
+    // Specialization for integral source and floating-point target
+    template<typename ToType, typename FromType>
+    struct numeric_cast_validator<ToType, FromType, false, true> {
+        static ToType validate(FromType value, const char* file, int line, const char* function) {
+            // Convert to double for safer comparison
+            // This helps with large integer values close to the floating point limits
+            double doubleValue = static_cast<double>(value);
+            
+            // Check for overflow/underflow
+            if (doubleValue > static_cast<double>(std::numeric_limits<ToType>::max())) {
+                std::ostringstream ss;
+                ss << "Value (" << value << ") exceeds maximum for target type ("
+                   << std::numeric_limits<ToType>::max() << ")";
+                throw cast_exception(ss.str(), file, line, function);
+            }
+            
+            if (doubleValue < static_cast<double>(std::numeric_limits<ToType>::lowest())) {
+                std::ostringstream ss;
+                ss << "Value (" << value << ") is below minimum for target type ("
+                   << std::numeric_limits<ToType>::lowest() << ")";
+                throw cast_exception(ss.str(), file, line, function);
+            }
+            
+            return static_cast<ToType>(value);
+        }
+    };
+
+    // Specialization for integral source and integral target
+    template<typename ToType, typename FromType>
+    struct numeric_cast_validator<ToType, FromType, false, false> {
+        static ToType validate(FromType value, const char* file, int line, const char* function) {
+            // Check for signed to unsigned conversion with negative value
+            if (std::is_signed<FromType>::value && std::is_unsigned<ToType>::value) {
                 if (value < 0) {
-                    // For negative values
-                    if (static_cast<double>(value) < static_cast<double>(std::numeric_limits<ToType>::lowest())) {
-                        std::ostringstream ss;
-                        ss << "Value (" << value << ") is below minimum for target type ("
-                           << std::numeric_limits<ToType>::lowest() << ")";
-                        throw cast_exception(ss.str(), file, line, function);
-                    }
+                    std::ostringstream ss;
+                    ss << "Attempt to cast negative value (" << value 
+                       << ") to unsigned type";
+                    throw cast_exception(ss.str(), file, line, function);
                 }
             }
-        } else {
-            // For integral types, use the original long long intermediate cast
+            
+            // For integral types, use intermediate long long for range checks
             if (static_cast<long long>(value) > static_cast<long long>(std::numeric_limits<ToType>::max())) {
                 std::ostringstream ss;
                 ss << "Value (" << value << ") exceeds maximum for target type ("
@@ -281,9 +291,28 @@ namespace detail {
                    << std::numeric_limits<ToType>::lowest() << ")";
                 throw cast_exception(ss.str(), file, line, function);
             }
+            
+            return static_cast<ToType>(value);
         }
-#endif
+    };
+
+    /**
+     * @brief Helper function to perform safe numeric casting with validation
+     */
+    template<typename ToType, typename FromType>
+    ToType numeric_cast_impl(FromType value, const char* file, int line, const char* function) {
+        static_assert(is_numeric_or_char<ToType>::value, "ToType must be a numeric type or char");
+        static_assert(is_numeric_or_char<FromType>::value, "FromType must be a numeric type or char");
+        
+#if !NCAST_ENABLE_VALIDATION
+        // Suppress unused parameter warnings when validation is disabled
+        (void)file;
+        (void)line;
+        (void)function;
         return static_cast<ToType>(value);
+#else
+        return numeric_cast_validator<ToType, FromType>::validate(value, file, line, function);
+#endif
     }
 
     /**

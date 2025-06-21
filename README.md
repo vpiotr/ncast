@@ -240,7 +240,7 @@ public:
 #include <ncast/ncast.h>
 
 // When disabled, all casts behave like static_cast but with type safety
-// Validation overhead: ~5.6-9.8% (see benchmarks)
+// Validation overhead: ~6.0% (see benchmarks)
 // No-validation overhead: ~1-1.3% (nearly identical to static_cast)
 ```
 
@@ -378,34 +378,36 @@ The library includes comprehensive performance benchmarks comparing:
 
 **Advanced benchmark features:**
 - Multi-module approach: No-validation tests compiled separately with `NCAST_DISABLE_VALIDATION`
+- Statistical analysis: Multiple runs with average, median, standard deviation, min, max
 - Individual warm-up phases for each function to ensure fair comparison
-- ASCII performance charts with smart scaling for small differences
 - Heavy computational workload to measure real-world performance impact
-- Accurate progress reporting and result validation
+- Configurable number of runs via command line parameter
+- Comprehensive overhead analysis relative to static_cast baseline
 
 **Sample benchmark results:**
 ```
-=== Performance Summary ===
-1. static_cast:                   1713.46 ms
-2. numeric_cast (no validation):  1735.91 ms (1.0x)
-3. numeric_cast (validation):     1810.00 ms (1.1x)
-4. NUMERIC_CAST (no validation):  1717.93 ms (1.0x)
-5. NUMERIC_CAST (validation):     1880.78 ms (1.1x)
+=== Performance Summary (Average of 7 runs) ===
+1. static_cast:                  1749.4 ms (±17.6)
+2. numeric_cast (no validation):  1708.0 ms (±10.1)
+3. numeric_cast (validation):    1854.6 ms (±25.2)
+4. NUMERIC_CAST (no validation):  1736.5 ms (±23.3)
+5. NUMERIC_CAST (validation):    1853.8 ms (±19.4)
 
-Function validation overhead: 5.6%
-Macro validation overhead: 9.8%
+Function validation overhead: 6.0%
+Macro validation overhead:    6.0%
 ```
 
 **Key insights:**
 - No-validation versions perform very close to `static_cast`
-- Validation overhead is moderate (5.6% for functions, 9.8% for macros)
+- Validation overhead is moderate (6.0% for both functions and macros)
 - Macro versions provide location info with minimal additional cost
 - Perfect for performance-critical code when validation is disabled
 
 **Run benchmarks:**
 ```bash
-./run_benchmarks.sh          # Execute all benchmarks
-cd build && ./benchmark_ncast  # Direct execution with detailed output
+./run_benchmarks.sh             # Execute benchmarks with default settings (5 runs)
+cd build && ./benchmark_ncast   # Direct execution with default parameters
+cd build && ./benchmark_ncast 10  # Run with 10 iterations for better statistics
 ```
 
 ## Documentation
@@ -426,7 +428,7 @@ Generate comprehensive API documentation with Doxygen:
 
 ## Performance
 
-- **With validation**: Runtime overhead for range checking (5.6-9.8%)
+- **With validation**: Runtime overhead for range checking (6.0%)
 - **Without validation**: Minimal overhead (nearly identical to `static_cast`)
 - **Header-only**: No linking required, enables maximum compiler optimizations
 - **Benchmark-verified**: Comprehensive performance testing with real workloads
