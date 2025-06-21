@@ -49,6 +49,7 @@ unsigned int result = numeric_cast<unsigned int>(value);  // Throws if value is 
 - **Safe casting**: Validates value ranges before casting to prevent dangerous conversions
 - **Header-only**: Just include `ncast.h` and start using - no linking required
 - **Comprehensive support**: Works with all numeric types plus char types
+- **Enhanced long double support**: Uses high-precision intermediate calculations for accurate range validation
 - **Special floating-point handling**: Properly manages NaN, infinity, and denormal values
 - **Two APIs**: Function templates and macros with precise location information
 - **Optional validation**: Can be disabled for performance-critical code paths
@@ -185,6 +186,7 @@ ToType numeric_cast(FromType value);
 **Validation rules:**
 - Negative values cannot be cast to unsigned types
 - Values must fit within target type's range (uses `std::numeric_limits`)
+- **High-precision range checking**: Uses `long double` intermediate calculations for maximum accuracy, ensuring proper validation even when converting to/from `long double` types
 - Special floating-point values are handled properly:
   - NaN can only be converted between floating-point types
   - Infinity can only be converted between floating-point types
@@ -322,6 +324,42 @@ try {
 } catch (const cast_exception& e) {
     // Handle denormal conversion failure
 }
+```
+
+### Long Double Support
+
+```cpp
+// High-precision long double conversions with proper validation
+#include <ncast/ncast.h>
+#include <limits>
+using namespace ncast;
+
+// Basic long double conversions
+long double ld = 123.456L;
+double d = numeric_cast<double>(ld);        // OK: 123.456
+float f = numeric_cast<float>(ld);          // OK: 123.456f
+
+// Large integer to long double (preserves maximum precision)
+unsigned long long big_int = 0x1FFFFFFFFFFFFF01ULL;
+long double ld_result = numeric_cast<long double>(big_int);  // High precision preserved
+
+// Range validation for long double
+if (std::numeric_limits<long double>::max() > std::numeric_limits<double>::max()) {
+    long double huge = std::numeric_limits<long double>::max();
+    try {
+        double d_overflow = numeric_cast<double>(huge);  // Throws: value too large
+    } catch (const cast_exception& e) {
+        // Properly detects long double overflow to smaller floating-point types
+    }
+}
+
+// NaN and infinity handling with long double
+long double ld_nan = std::numeric_limits<long double>::quiet_NaN();
+double d_nan = numeric_cast<double>(ld_nan);     // OK: NaN between floating-point types
+// int i_nan = numeric_cast<int>(ld_nan);        // Throws: NaN cannot convert to integer
+
+long double ld_inf = std::numeric_limits<long double>::infinity();
+// int i_inf = numeric_cast<int>(ld_inf);        // Throws: infinity cannot convert to integer
 ```
 
 ### Boolean Casting

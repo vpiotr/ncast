@@ -804,6 +804,215 @@ UTEST_FUNC_DEF(ExtremeFloatingPointConversions) {
         }
     }
 }
+
+// =============================================================================
+// LONG DOUBLE SPECIFIC TESTS
+// =============================================================================
+
+// Test long double to other floating point conversions
+UTEST_FUNC_DEF(LongDoubleToFloatingPoint) {
+    // Basic long double to double/float conversions
+    long double ld1 = 42.5L;
+    UTEST_ASSERT_EQUALS(42.5, numeric_cast<double>(ld1));
+    UTEST_ASSERT_EQUALS(42.5f, numeric_cast<float>(ld1));
+    
+    // Test negative values
+    long double ld_neg = -123.456L;
+    UTEST_ASSERT_EQUALS(-123.456, numeric_cast<double>(ld_neg));
+    UTEST_ASSERT_EQUALS(-123.456f, numeric_cast<float>(ld_neg));
+    
+    // Test zero
+    long double ld_zero = 0.0L;
+    UTEST_ASSERT_EQUALS(0.0, numeric_cast<double>(ld_zero));
+    UTEST_ASSERT_EQUALS(0.0f, numeric_cast<float>(ld_zero));
+    
+    // Test same type conversion
+    long double ld2 = 999.999L;
+    UTEST_ASSERT_EQUALS(999.999L, numeric_cast<long double>(ld2));
+}
+
+// Test integer to long double conversions
+UTEST_FUNC_DEF(IntegerToLongDouble) {
+    // Basic integer to long double conversions
+    UTEST_ASSERT_EQUALS(42.0L, numeric_cast<long double>(42));
+    UTEST_ASSERT_EQUALS(-42.0L, numeric_cast<long double>(-42));
+    UTEST_ASSERT_EQUALS(42.0L, numeric_cast<long double>(42u));
+    
+    // Large integer values
+    long long large_int = std::numeric_limits<long long>::max();
+    long double ld_result = numeric_cast<long double>(large_int);
+    UTEST_ASSERT_EQUALS(static_cast<long double>(large_int), ld_result);
+    
+    // Test with unsigned long long
+    unsigned long long large_uint = std::numeric_limits<unsigned long long>::max();
+    long double ld_uint_result = numeric_cast<long double>(large_uint);
+    UTEST_ASSERT_EQUALS(static_cast<long double>(large_uint), ld_uint_result);
+    
+    // Test minimum values
+    long long min_int = std::numeric_limits<long long>::min();
+    long double ld_min_result = numeric_cast<long double>(min_int);
+    UTEST_ASSERT_EQUALS(static_cast<long double>(min_int), ld_min_result);
+}
+
+// Test long double to integer conversions
+UTEST_FUNC_DEF(LongDoubleToInteger) {
+    // Basic conversions with truncation
+    UTEST_ASSERT_EQUALS(42, numeric_cast<int>(42.0L));
+    UTEST_ASSERT_EQUALS(42, numeric_cast<int>(42.7L)); // Should truncate
+    UTEST_ASSERT_EQUALS(42, numeric_cast<int>(42.9L)); // Should truncate
+    UTEST_ASSERT_EQUALS(-42, numeric_cast<int>(-42.7L)); // Should truncate toward zero
+    
+    // Test boundary values
+    long double max_int_as_ld = static_cast<long double>(std::numeric_limits<int>::max());
+    UTEST_ASSERT_EQUALS(std::numeric_limits<int>::max(), numeric_cast<int>(max_int_as_ld));
+    
+    long double min_int_as_ld = static_cast<long double>(std::numeric_limits<int>::min());
+    UTEST_ASSERT_EQUALS(std::numeric_limits<int>::min(), numeric_cast<int>(min_int_as_ld));
+    
+    // Test conversion to unsigned types
+    UTEST_ASSERT_EQUALS(42u, numeric_cast<unsigned int>(42.0L));
+    UTEST_ASSERT_EQUALS(0u, numeric_cast<unsigned int>(0.0L));
+    
+    // Negative long double to unsigned should throw
+    UTEST_ASSERT_THROWS([](){ numeric_cast<unsigned int>(-1.0L); });
+    UTEST_ASSERT_THROWS([](){ numeric_cast<unsigned char>(-42.5L); });
+}
+
+// Test long double overflow/underflow detection
+UTEST_FUNC_DEF(LongDoubleOverflowDetection) {
+    // Test long double to smaller floating point types
+    if (std::numeric_limits<long double>::max() > std::numeric_limits<double>::max()) {
+        // Create a long double value larger than double can handle
+        long double huge_ld = std::numeric_limits<long double>::max();
+        
+        // Should throw when converting to double
+        UTEST_ASSERT_THROWS([huge_ld](){ numeric_cast<double>(huge_ld); });
+        
+        // Should also throw when converting to float
+        UTEST_ASSERT_THROWS([huge_ld](){ numeric_cast<float>(huge_ld); });
+    }
+    
+    if (std::numeric_limits<long double>::lowest() < std::numeric_limits<double>::lowest()) {
+        // Create a long double value smaller than double can handle
+        long double tiny_ld = std::numeric_limits<long double>::lowest();
+        
+        // Should throw when converting to double
+        UTEST_ASSERT_THROWS([tiny_ld](){ numeric_cast<double>(tiny_ld); });
+        
+        // Should also throw when converting to float
+        UTEST_ASSERT_THROWS([tiny_ld](){ numeric_cast<float>(tiny_ld); });
+    }
+    
+    // Test long double to integer overflow
+    if (std::numeric_limits<long double>::max() > std::numeric_limits<long long>::max()) {
+        long double huge_for_int = static_cast<long double>(std::numeric_limits<long long>::max()) * 2.0L;
+        UTEST_ASSERT_THROWS([huge_for_int](){ numeric_cast<long long>(huge_for_int); });
+        UTEST_ASSERT_THROWS([huge_for_int](){ numeric_cast<int>(huge_for_int); });
+    }
+    
+    // Test underflow
+    if (std::numeric_limits<long double>::lowest() < std::numeric_limits<long long>::min()) {
+        long double tiny_for_int = static_cast<long double>(std::numeric_limits<long long>::min()) * 2.0L;
+        UTEST_ASSERT_THROWS([tiny_for_int](){ numeric_cast<long long>(tiny_for_int); });
+        UTEST_ASSERT_THROWS([tiny_for_int](){ numeric_cast<int>(tiny_for_int); });
+    }
+}
+
+// Test long double special values (NaN, infinity)
+UTEST_FUNC_DEF(LongDoubleSpecialValues) {
+    // Test NaN conversions
+    long double ld_nan = std::numeric_limits<long double>::quiet_NaN();
+    
+    // NaN to other floating point types should work
+    double d_from_ld_nan = numeric_cast<double>(ld_nan);
+    UTEST_ASSERT_TRUE(std::isnan(d_from_ld_nan));
+    
+    float f_from_ld_nan = numeric_cast<float>(ld_nan);
+    UTEST_ASSERT_TRUE(std::isnan(f_from_ld_nan));
+    
+    // NaN to integer types should throw
+    UTEST_ASSERT_THROWS([ld_nan](){ numeric_cast<int>(ld_nan); });
+    UTEST_ASSERT_THROWS([ld_nan](){ numeric_cast<unsigned int>(ld_nan); });
+    UTEST_ASSERT_THROWS([ld_nan](){ numeric_cast<long long>(ld_nan); });
+    
+    // Test infinity conversions
+    long double ld_inf = std::numeric_limits<long double>::infinity();
+    
+    // Infinity to other floating point types should work if in range
+    if (std::numeric_limits<double>::has_infinity) {
+        double d_from_ld_inf = numeric_cast<double>(ld_inf);
+        UTEST_ASSERT_TRUE(std::isinf(d_from_ld_inf));
+    }
+    
+    if (std::numeric_limits<float>::has_infinity) {
+        float f_from_ld_inf = numeric_cast<float>(ld_inf);
+        UTEST_ASSERT_TRUE(std::isinf(f_from_ld_inf));
+    }
+    
+    // Infinity to integer types should throw
+    UTEST_ASSERT_THROWS([ld_inf](){ numeric_cast<int>(ld_inf); });
+    UTEST_ASSERT_THROWS([ld_inf](){ numeric_cast<unsigned int>(ld_inf); });
+    UTEST_ASSERT_THROWS([ld_inf](){ numeric_cast<long long>(ld_inf); });
+    
+    // Test negative infinity
+    long double ld_neg_inf = -std::numeric_limits<long double>::infinity();
+    UTEST_ASSERT_THROWS([ld_neg_inf](){ numeric_cast<int>(ld_neg_inf); });
+    UTEST_ASSERT_THROWS([ld_neg_inf](){ numeric_cast<unsigned int>(ld_neg_inf); });
+}
+
+// Test precision preservation with long double
+UTEST_FUNC_DEF(LongDoublePrecisionTests) {
+    // Only run precision tests if long double has more precision than double
+    if (std::numeric_limits<long double>::digits > std::numeric_limits<double>::digits) {
+        // Test that values requiring high precision are handled correctly
+        // This tests the fix for using double as intermediate type
+        
+        // Create a value that loses precision when converted to double
+        unsigned long long precise_value = 0x1FFFFFFFFFFFFF01ULL; // Requires more than 53 bits precision
+        
+        // Verify the precision difference exists
+        double as_double = static_cast<double>(precise_value);
+        long double as_long_double = static_cast<long double>(precise_value);
+        
+        if (static_cast<long double>(as_double) != as_long_double) {
+            // There is a precision difference, so our test is valid
+            
+            // Test that numeric_cast to long double preserves the original precision
+            long double result = numeric_cast<long double>(precise_value);
+            UTEST_ASSERT_EQUALS(as_long_double, result);
+            
+            // Test that the result is different from what we'd get via double
+            UTEST_ASSERT_TRUE(result != static_cast<long double>(as_double));
+        }
+    }
+}
+
+// Test macro versions with long double
+UTEST_FUNC_DEF(LongDoubleMacroTests) {
+    // Test NUMERIC_CAST macro with long double
+    long double ld_val = 123.456L;
+    
+    auto result_double = NUMERIC_CAST(double, ld_val);
+    UTEST_ASSERT_EQUALS(123.456, result_double);
+    
+    auto result_float = NUMERIC_CAST(float, ld_val);
+    UTEST_ASSERT_EQUALS(123.456f, result_float);
+    
+    auto result_int = NUMERIC_CAST(int, ld_val);
+    UTEST_ASSERT_EQUALS(123, result_int);
+    
+    // Test with overflow (should throw with location info)
+    if (std::numeric_limits<long double>::max() > std::numeric_limits<float>::max()) {
+        long double huge_ld = std::numeric_limits<long double>::max();
+        UTEST_ASSERT_THROWS([huge_ld](){ NUMERIC_CAST(float, huge_ld); });
+    }
+    
+    // Test integer to long double via macro
+    int int_val = 42;
+    auto ld_result = NUMERIC_CAST(long double, int_val);
+    UTEST_ASSERT_EQUALS(42.0L, ld_result);
+}
+
 int main() {
     UTEST_PROLOG();
     UTEST_ENABLE_VERBOSE_MODE();
@@ -827,6 +1036,15 @@ int main() {
     UTEST_FUNC(NaNConversions);
     UTEST_FUNC(SignedZeroConversions);
     UTEST_FUNC(ExtremeFloatingPointConversions);
+    
+    // Long double specific tests
+    UTEST_FUNC(LongDoubleToFloatingPoint);
+    UTEST_FUNC(IntegerToLongDouble);
+    UTEST_FUNC(LongDoubleToInteger);
+    UTEST_FUNC(LongDoubleOverflowDetection);
+    UTEST_FUNC(LongDoubleSpecialValues);
+    UTEST_FUNC(LongDoublePrecisionTests);
+    UTEST_FUNC(LongDoubleMacroTests);
     
     // char_cast specific tests
     UTEST_FUNC(CharCastBasic);

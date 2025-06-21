@@ -15,6 +15,8 @@
  * - char_cast: Safe casting between signed/unsigned chars only
  * - Macro versions with accurate location information
  * - Optional validation (can be disabled with NCAST_DISABLE_VALIDATION)
+ * - High-precision validation using long double intermediate calculations
+ * - Enhanced support for long double with proper range checking
  * 
  * @code
  * #include <ncast/ncast.h>
@@ -240,19 +242,19 @@ namespace detail {
     template<typename ToType, typename FromType>
     struct numeric_cast_validator<ToType, FromType, false, true> {
         static ToType validate(FromType value, const char* file, int line, const char* function) {
-            // Convert to double for safer comparison
-            // This helps with large integer values close to the floating point limits
-            double doubleValue = static_cast<double>(value);
+            // Use long double for intermediate calculations to ensure maximum precision
+            // and accuracy when the target type is long double or when high precision is needed
+            long double longDoubleValue = static_cast<long double>(value);
             
-            // Check for overflow/underflow
-            if (doubleValue > static_cast<double>(std::numeric_limits<ToType>::max())) {
+            // Check for overflow/underflow using long double for maximum precision
+            if (longDoubleValue > static_cast<long double>(std::numeric_limits<ToType>::max())) {
                 std::ostringstream ss;
                 ss << "Value (" << value << ") exceeds maximum for target type ("
                    << std::numeric_limits<ToType>::max() << ")";
                 throw cast_exception(ss.str(), file, line, function);
             }
             
-            if (doubleValue < static_cast<double>(std::numeric_limits<ToType>::lowest())) {
+            if (longDoubleValue < static_cast<long double>(std::numeric_limits<ToType>::lowest())) {
                 std::ostringstream ss;
                 ss << "Value (" << value << ") is below minimum for target type ("
                    << std::numeric_limits<ToType>::lowest() << ")";
@@ -277,15 +279,20 @@ namespace detail {
                 }
             }
             
-            // For integral types, use intermediate long long for range checks
-            if (static_cast<long long>(value) > static_cast<long long>(std::numeric_limits<ToType>::max())) {
+            // For integral types, use long double for range checks to ensure maximum precision
+            // This handles cases where both FromType and ToType might be larger than long long
+            long double longDoubleValue = static_cast<long double>(value);
+            long double maxTarget = static_cast<long double>(std::numeric_limits<ToType>::max());
+            long double minTarget = static_cast<long double>(std::numeric_limits<ToType>::lowest());
+            
+            if (longDoubleValue > maxTarget) {
                 std::ostringstream ss;
                 ss << "Value (" << value << ") exceeds maximum for target type ("
                    << std::numeric_limits<ToType>::max() << ")";
                 throw cast_exception(ss.str(), file, line, function);
             }
             
-            if (static_cast<long long>(value) < static_cast<long long>(std::numeric_limits<ToType>::lowest())) {
+            if (longDoubleValue < minTarget) {
                 std::ostringstream ss;
                 ss << "Value (" << value << ") is below minimum for target type ("
                    << std::numeric_limits<ToType>::lowest() << ")";
