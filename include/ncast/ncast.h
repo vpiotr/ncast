@@ -124,6 +124,15 @@ public:
 
 namespace detail {
     /**
+     * @brief Widening types used for safe range comparisons
+     * 
+     * These types provide maximum precision for intermediate calculations
+     * during cast validation to ensure accurate range checking.
+     */
+    using widening_float_type = long double;    ///< Type for floating-point widening comparisons
+    using widening_int_type = long long;        ///< Type for integer widening comparisons
+
+    /**
      * @brief Type trait to check if a type is a character type
      */
     template<typename T>
@@ -242,19 +251,19 @@ namespace detail {
     template<typename ToType, typename FromType>
     struct numeric_cast_validator<ToType, FromType, false, true> {
         static ToType validate(FromType value, const char* file, int line, const char* function) {
-            // Use long double for intermediate calculations to ensure maximum precision
+            // Use widening_float_type for intermediate calculations to ensure maximum precision
             // and accuracy when the target type is long double or when high precision is needed
-            long double longDoubleValue = static_cast<long double>(value);
+            widening_float_type wideningValue = static_cast<widening_float_type>(value);
             
-            // Check for overflow/underflow using long double for maximum precision
-            if (longDoubleValue > static_cast<long double>(std::numeric_limits<ToType>::max())) {
+            // Check for overflow/underflow using widening_float_type for maximum precision
+            if (wideningValue > static_cast<widening_float_type>(std::numeric_limits<ToType>::max())) {
                 std::ostringstream ss;
                 ss << "Value (" << value << ") exceeds maximum for target type ("
                    << std::numeric_limits<ToType>::max() << ")";
                 throw cast_exception(ss.str(), file, line, function);
             }
             
-            if (longDoubleValue < static_cast<long double>(std::numeric_limits<ToType>::lowest())) {
+            if (wideningValue < static_cast<widening_float_type>(std::numeric_limits<ToType>::lowest())) {
                 std::ostringstream ss;
                 ss << "Value (" << value << ") is below minimum for target type ("
                    << std::numeric_limits<ToType>::lowest() << ")";
@@ -279,20 +288,20 @@ namespace detail {
                 }
             }
             
-            // For integral types, use long double for range checks to ensure maximum precision
+            // For integral types, use widening_float_type for range checks to ensure maximum precision
             // This handles cases where both FromType and ToType might be larger than long long
-            long double longDoubleValue = static_cast<long double>(value);
-            long double maxTarget = static_cast<long double>(std::numeric_limits<ToType>::max());
-            long double minTarget = static_cast<long double>(std::numeric_limits<ToType>::lowest());
+            widening_float_type wideningValue = static_cast<widening_float_type>(value);
+            widening_float_type maxTarget = static_cast<widening_float_type>(std::numeric_limits<ToType>::max());
+            widening_float_type minTarget = static_cast<widening_float_type>(std::numeric_limits<ToType>::lowest());
             
-            if (longDoubleValue > maxTarget) {
+            if (wideningValue > maxTarget) {
                 std::ostringstream ss;
                 ss << "Value (" << value << ") exceeds maximum for target type ("
                    << std::numeric_limits<ToType>::max() << ")";
                 throw cast_exception(ss.str(), file, line, function);
             }
             
-            if (longDoubleValue < minTarget) {
+            if (wideningValue < minTarget) {
                 std::ostringstream ss;
                 ss << "Value (" << value << ") is below minimum for target type ("
                    << std::numeric_limits<ToType>::lowest() << ")";

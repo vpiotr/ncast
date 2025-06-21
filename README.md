@@ -49,6 +49,7 @@ unsigned int result = numeric_cast<unsigned int>(value);  // Throws if value is 
 - **Safe casting**: Validates value ranges before casting to prevent dangerous conversions
 - **Header-only**: Just include `ncast.h` and start using - no linking required
 - **Comprehensive support**: Works with all numeric types plus char types
+- **Enhanced precision**: Uses centralized widening types for maximum accuracy in range validation
 - **Enhanced long double support**: Uses high-precision intermediate calculations for accurate range validation
 - **Special floating-point handling**: Properly manages NaN, infinity, and denormal values
 - **Two APIs**: Function templates and macros with precise location information
@@ -56,7 +57,7 @@ unsigned int result = numeric_cast<unsigned int>(value);  // Throws if value is 
 - **Exception safety**: Clear error messages with file/line/function information
 - **Zero overhead**: When validation is disabled, performs identical to `static_cast`
 - **Boundary testing**: Uses `std::numeric_limits` for accurate range validation
-- **Well-tested**: Comprehensive test suite with edge case coverage
+- **Modular testing**: Well-organized test suite with focused test modules for maintainability
 - **High performance**: Minimal overhead with extensive benchmarking
 
 ## Installation
@@ -186,7 +187,7 @@ ToType numeric_cast(FromType value);
 **Validation rules:**
 - Negative values cannot be cast to unsigned types
 - Values must fit within target type's range (uses `std::numeric_limits`)
-- **High-precision range checking**: Uses `long double` intermediate calculations for maximum accuracy, ensuring proper validation even when converting to/from `long double` types
+- **High-precision range checking**: Uses centralized widening types (`long double` for floating-point, `long long` for integer comparisons) for maximum accuracy, ensuring proper validation even when converting to/from `long double` types
 - Special floating-point values are handled properly:
   - NaN can only be converted between floating-point types
   - Infinity can only be converted between floating-point types
@@ -385,7 +386,10 @@ ncast/
 │   └── utest/
 │       └── utest.h          # Testing framework
 ├── tests/
-│   └── test_ncast.cpp       # Comprehensive tests
+│   ├── test_ncast_core.cpp     # Core functionality tests (basic casting, macros, integration)
+│   ├── test_ncast_int.cpp      # Integer-specific tests (overflow, narrowing, size edge cases)
+│   ├── test_ncast_float.cpp    # Floating-point tests (conversions, NaN/infinity, long double)
+│   └── test_ncast_char.cpp     # Character-specific tests (char_cast, ASCII, boundaries)
 ├── demos/
 │   ├── demo_ncast.cpp       # Usage demonstrations
 │   └── benchmark_ncast.cpp  # Performance benchmarks
@@ -405,23 +409,53 @@ ncast/
 
 ## Testing
 
-The library includes comprehensive tests covering:
+The library includes comprehensive tests organized into focused modules:
 
-- Basic casting operations between all numeric types
-- Boundary value testing using `std::numeric_limits`
-- Overflow/underflow detection and validation
-- Exception handling and error message verification
-- Macro functionality and location information
-- Char-specific casting scenarios
-- Platform-specific integer size handling
-- Sign conversion edge cases
-- Floating-point to integer conversions
+### Test Modules
 
-**Test execution:**
+- **`test_ncast_core`**: Core functionality tests
+  - Basic casting operations between all numeric types
+  - Macro functionality (`NUMERIC_CAST`, `CHAR_CAST`) and location information
+  - Integration tests combining multiple conversion types
+  
+- **`test_ncast_int`**: Integer-specific tests
+  - Overflow/underflow detection (signed↔unsigned, narrowing conversions)
+  - Boundary value testing using `std::numeric_limits`
+  - Platform-specific integer size handling
+  - Sign conversion edge cases
+
+- **`test_ncast_float`**: Floating-point tests
+  - Float↔int conversions with proper truncation and range validation
+  - Float↔double conversions including precision loss scenarios
+  - Special value handling (NaN, infinity, signed zero, denormalized values)
+  - Long double specific tests with high-precision validation
+  - Extreme value and subnormal number handling
+
+- **`test_ncast_char`**: Character-specific tests
+  - `char_cast` functionality between char types
+  - Int↔char conversions with ASCII range validation
+  - Extended ASCII (128-255) and negative value handling
+  - Boundary interactions between `char`, `signed char`, `unsigned char`
+
+### Running Tests
+
+**Individual test modules:**
 ```bash
-./run_tests.sh    # Quick test run
-cd build && make test && ctest -V  # Verbose CMake/CTest output
+cd build
+./test_ncast_core     # Core functionality (5 tests)
+./test_ncast_int      # Integer tests (4 tests)
+./test_ncast_float    # Floating-point tests (15 tests)
+./test_ncast_char     # Character tests (8 tests)
 ```
+
+**All tests via CTest:**
+```bash
+./run_tests.sh              # Quick test run (all 4 modules)
+cd build && ctest           # Run all test modules
+cd build && ctest -V        # Verbose output
+```
+
+**Total test coverage**: 32 comprehensive tests across all modules covering every aspect of the library.
 
 ## Benchmarks
 

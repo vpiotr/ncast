@@ -57,15 +57,27 @@ option(BUILD_TESTS "Build tests" ON)
 if(BUILD_TESTS)
     enable_testing()
     
-    # Test executable
-    add_executable(test_ncast tests/test_ncast.cpp)
-    target_link_libraries(test_ncast ncast)
+    # Modular test executables
+    add_executable(test_ncast_core tests/test_ncast_core.cpp)
+    target_link_libraries(test_ncast_core ncast)
     
-    # Add test to CTest
-    add_test(NAME ncast_tests COMMAND test_ncast)
+    add_executable(test_ncast_int tests/test_ncast_int.cpp)
+    target_link_libraries(test_ncast_int ncast)
+    
+    add_executable(test_ncast_float tests/test_ncast_float.cpp)
+    target_link_libraries(test_ncast_float ncast)
+    
+    add_executable(test_ncast_char tests/test_ncast_char.cpp)
+    target_link_libraries(test_ncast_char ncast)
+    
+    # Add tests to CTest
+    add_test(NAME ncast_core_tests COMMAND test_ncast_core)
+    add_test(NAME ncast_int_tests COMMAND test_ncast_int)
+    add_test(NAME ncast_float_tests COMMAND test_ncast_float)
+    add_test(NAME ncast_char_tests COMMAND test_ncast_char)
     
     # Set test properties
-    set_tests_properties(ncast_tests PROPERTIES
+    set_tests_properties(ncast_core_tests ncast_int_tests ncast_float_tests ncast_char_tests PROPERTIES
         PASS_REGULAR_EXPRESSION "SUCCESS"
     )
 endif()
