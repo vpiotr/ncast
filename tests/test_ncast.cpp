@@ -137,13 +137,6 @@ UTEST_FUNC_DEF(MacroExceptionInfo) {
     }
 }
 
-// Test validation can be disabled
-UTEST_FUNC_DEF(ValidationDisabled) {
-    // This test demonstrates that validation can be disabled with compile flag
-    // In practice, this would be tested by compiling with -DNCAST_DISABLE_VALIDATION
-    UTEST_ASSERT_TRUE(true); // Placeholder test
-}
-
 int main() {
     UTEST_PROLOG();
     
@@ -158,7 +151,6 @@ int main() {
     UTEST_FUNC(CharCastBoundary);
     UTEST_FUNC(MacroVersions);
     UTEST_FUNC(MacroExceptionInfo);
-    UTEST_FUNC(ValidationDisabled);
     
     UTEST_EPILOG();
     

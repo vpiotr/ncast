@@ -19,6 +19,7 @@ echo "Running demos..."
 demo_count=0
 success_count=0
 
+# Check for demo_* executables only
 for demo in demo_*; do
     if [ -x "$demo" ]; then
         demo_count=$((demo_count + 1))

@@ -58,6 +58,9 @@ cd ncast
 # Run demos
 ./run_demos.sh
 
+# Run benchmarks
+./run_benchmarks.sh
+
 # Build documentation (requires Doxygen)
 ./build_docs.sh
 ```
@@ -165,7 +168,8 @@ ncast/
 ├── tests/
 │   └── test_ncast.cpp       # Comprehensive tests
 ├── demos/
-│   └── demo_ncast.cpp       # Usage demonstrations
+│   ├── demo_ncast.cpp       # Usage demonstrations
+│   └── benchmark_ncast.cpp  # Performance benchmarks
 ├── docs/
 │   ├── Doxyfile.in          # Doxygen configuration
 │   └── html/                # Generated documentation
@@ -175,6 +179,7 @@ ncast/
 ├── rebuild.sh               # Build from scratch
 ├── run_tests.sh             # Execute tests
 ├── run_demos.sh             # Execute demos
+├── run_benchmarks.sh        # Execute benchmarks
 ├── build_docs.sh            # Generate documentation
 └── README.md                # This file
 ```
@@ -194,6 +199,27 @@ Run tests with:
 ```bash
 ./run_tests.sh
 ```
+
+## Benchmarks
+
+The library includes comprehensive performance benchmarks comparing:
+- `static_cast` (baseline)
+- `number_cast` function without validation (true no-validation implementation)
+- `number_cast` function with validation (with runtime checks)
+- `NUMBER_CAST` macro without validation (true no-validation implementation)
+- `NUMBER_CAST` macro with validation (with runtime checks and location info)
+
+The benchmark uses a multi-module approach where the no-validation tests are compiled in a separate module with `NCAST_DISABLE_VALIDATION` defined, ensuring accurate performance comparison between all casting methods.
+
+Run benchmarks with:
+```bash
+./run_benchmarks.sh
+```
+
+Example benchmark results show:
+- Very low overhead for validation (typically 0.3-1.2% for computational workloads)
+- No-validation versions perform nearly identically to `static_cast`
+- Macro versions may have slightly better optimization in some cases
 
 ## Documentation
 

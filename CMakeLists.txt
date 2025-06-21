@@ -50,12 +50,21 @@ if(BUILD_TESTS)
     )
 endif()
 
-# Build demos
-option(BUILD_DEMOS "Build demonstration programs" ON)
+# Build demos and benchmarks
+option(BUILD_DEMOS "Build demonstration programs and benchmarks" ON)
 if(BUILD_DEMOS)
     # Demo executable
     add_executable(demo_ncast demos/demo_ncast.cpp)
     target_link_libraries(demo_ncast ncast)
+    
+    # Benchmark no-validation module (compiled with NCAST_DISABLE_VALIDATION)
+    add_library(benchmark_ncast_no_validation demos/benchmark_ncast_no_validation.cpp)
+    target_include_directories(benchmark_ncast_no_validation PRIVATE ${CMAKE_SOURCE_DIR}/include)
+    target_compile_definitions(benchmark_ncast_no_validation PRIVATE NCAST_DISABLE_VALIDATION)
+    
+    # Benchmark executable (links with the no-validation module)
+    add_executable(benchmark_ncast demos/benchmark_ncast.cpp)
+    target_link_libraries(benchmark_ncast ncast benchmark_ncast_no_validation)
 endif()
 
 # Documentation with Doxygen
