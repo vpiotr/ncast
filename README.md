@@ -177,6 +177,11 @@ ToType numeric_cast(FromType value);
 #define NUMERIC_CAST(ToType, value)
 ```
 
+**Supported types:**
+- All integral types: `bool`, `char`, `signed char`, `unsigned char`, `short`, `unsigned short`, `int`, `unsigned int`, `long`, `unsigned long`, `long long`, `unsigned long long`
+- All floating-point types: `float`, `double`, `long double`
+- **NOT supported**: Pointer types, user-defined types, arrays, references (compile-time error via `static_assert`)
+
 **Validation rules:**
 - Negative values cannot be cast to unsigned types
 - Values must fit within target type's range (uses `std::numeric_limits`)
@@ -317,6 +322,19 @@ try {
 } catch (const cast_exception& e) {
     // Handle denormal conversion failure
 }
+```
+
+### Boolean Casting
+
+```cpp
+// Boolean conversions with validation
+bool b1 = numeric_cast<bool>(0);    // OK: false
+bool b2 = numeric_cast<bool>(1);    // OK: true
+int i = numeric_cast<int>(true);    // OK: 1
+
+// These would throw due to range validation:
+// bool b3 = numeric_cast<bool>(2);     // Value too large for bool (max is 1)
+// bool b4 = numeric_cast<bool>(-1);    // Negative value (bool is unsigned)
 ```
 
 ## Project Structure
