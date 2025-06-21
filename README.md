@@ -78,18 +78,18 @@ using namespace ncast;
 
 // Safe casting - throws cast_exception if value doesn't fit
 int value = 42;
-unsigned int result = number_cast<unsigned int>(value);  // OK
+unsigned int result = numeric_cast<unsigned int>(value);  // OK
 
 // This would throw because -1 cannot be safely cast to unsigned
 int negative = -1;
-unsigned int bad_result = number_cast<unsigned int>(negative);  // Throws!
+unsigned int bad_result = numeric_cast<unsigned int>(negative);  // Throws!
 
 // Char-specific casting (always safe between char types)
 signed char sc = 'A';
 unsigned char uc = char_cast<unsigned char>(sc);  // Always safe
 
 // Macro versions provide better error location information
-auto result2 = NUMBER_CAST(unsigned int, value);
+auto result2 = NUMERIC_CAST(unsigned int, value);
 auto result3 = CHAR_CAST(unsigned char, sc);
 ```
 
@@ -145,16 +145,16 @@ cmake .. -DCMAKE_BUILD_TYPE=Release
 
 ## API Reference
 
-### number_cast
+### numeric_cast
 
 Safe casting between any numeric types and char:
 
 ```cpp
 template<typename ToType, typename FromType>
-ToType number_cast(FromType value);
+ToType numeric_cast(FromType value);
 
 // Macro version with location info
-#define NUMBER_CAST(ToType, value)
+#define NUMERIC_CAST(ToType, value)
 ```
 
 **Validation rules:**
@@ -167,7 +167,7 @@ ToType number_cast(FromType value);
 ```cpp
 // Exception provides rich context information
 try {
-    auto result = NUMBER_CAST(unsigned int, -42);
+    auto result = NUMERIC_CAST(unsigned int, -42);
 } catch (const cast_exception& e) {
     // e.what() includes value, types, file, line, and function
     // e.getFile(), e.getLine(), e.getFunction() for programmatic access
@@ -233,14 +233,14 @@ public:
 using namespace ncast;
 
 // Safe conversions
-int a = number_cast<int>(42u);           // OK
-unsigned int b = number_cast<unsigned int>(42);  // OK
-char c = number_cast<char>(65);          // OK ('A')
+int a = numeric_cast<int>(42u);           // OK
+unsigned int b = numeric_cast<unsigned int>(42);  // OK
+char c = numeric_cast<char>(65);          // OK ('A')
 
 // These would throw:
-// unsigned int d = number_cast<unsigned int>(-1);     // Negative to unsigned
-// char e = number_cast<char>(300);                    // Value too large
-// int f = number_cast<int>(UINT_MAX);                 // Overflow
+// unsigned int d = numeric_cast<unsigned int>(-1);     // Negative to unsigned
+// char e = numeric_cast<char>(300);                    // Value too large
+// int f = numeric_cast<int>(UINT_MAX);                 // Overflow
 ```
 
 ### Char Casting
@@ -261,7 +261,7 @@ signed char sc2 = char_cast<signed char>(c);        // OK
 
 ```cpp
 try {
-    int result = NUMBER_CAST(int, some_large_value);
+    int result = NUMERIC_CAST(int, some_large_value);
 } catch (const ncast::cast_exception& e) {
     std::cout << "Cast failed: " << e.what() << std::endl;
     std::cout << "File: " << e.getFile() << std::endl;
@@ -321,10 +321,10 @@ cd build && make test && ctest -V  # Verbose CMake/CTest output
 
 The library includes comprehensive performance benchmarks comparing:
 - `static_cast` (baseline - fastest possible)
-- `number_cast` function **without** validation (true no-validation, separate compilation unit)
-- `number_cast` function **with** validation (runtime checks enabled)
-- `NUMBER_CAST` macro **without** validation (true no-validation, separate compilation unit)  
-- `NUMBER_CAST` macro **with** validation (runtime checks + location info)
+- `numeric_cast` function **without** validation (true no-validation, separate compilation unit)
+- `numeric_cast` function **with** validation (runtime checks enabled)
+- `NUMERIC_CAST` macro **without** validation (true no-validation, separate compilation unit)  
+- `NUMERIC_CAST` macro **with** validation (runtime checks + location info)
 
 **Advanced benchmark features:**
 - Multi-module approach: No-validation tests compiled separately with `NCAST_DISABLE_VALIDATION`
@@ -337,10 +337,10 @@ The library includes comprehensive performance benchmarks comparing:
 ```
 === Performance Summary ===
 1. static_cast:                   1743.60 ms
-2. number_cast (no validation):   1730.13 ms (1.0x - essentially identical)
-3. number_cast (validation):      1819.8 ms (1.04x - 4.4% overhead)
-4. NUMBER_CAST (no validation):   1730.6 ms (1.0x - essentially identical)  
-5. NUMBER_CAST (validation):      1823.7 ms (1.05x - 4.6% overhead)
+2. numeric_cast (no validation):   1730.13 ms (1.0x - essentially identical)
+3. numeric_cast (validation):      1819.8 ms (1.04x - 4.4% overhead)
+4. NUMERIC_CAST (no validation):   1730.6 ms (1.0x - essentially identical)  
+5. NUMERIC_CAST (validation):      1823.7 ms (1.05x - 4.6% overhead)
 
 Function validation overhead: 4.4%
 Macro validation overhead: 4.6%
