@@ -5,53 +5,68 @@
 
 using namespace ncast;
 
-// Test basic successful casts
+// =============================================================================
+// BASIC FUNCTIONALITY TESTS
+// =============================================================================
+
+// Test basic successful casts between similar types
 UTEST_FUNC_DEF(NumberCastBasic) {
-    // Test basic successful casts
+    // Same type casting
     UTEST_ASSERT_EQUALS(42, number_cast<int>(42));
-    UTEST_ASSERT_EQUALS(42u, number_cast<unsigned int>(42));
+    UTEST_ASSERT_EQUALS(42u, number_cast<unsigned int>(42u));
+    
+    // Widening conversions (always safe)
+    UTEST_ASSERT_EQUALS(42, number_cast<int>(static_cast<short>(42)));
     UTEST_ASSERT_EQUALS(42.0f, number_cast<float>(42));
     UTEST_ASSERT_EQUALS(42.0, number_cast<double>(42.0f));
+    
+    // Simple positive value conversions
+    UTEST_ASSERT_EQUALS(42u, number_cast<unsigned int>(42));
+    UTEST_ASSERT_EQUALS(42, number_cast<int>(42u));
 }
 
-// Test char casting
-UTEST_FUNC_DEF(NumberCastChar) {
+// Test basic char operations
+UTEST_FUNC_DEF(NumberCastCharBasic) {
+    // Basic char to int and back
     UTEST_ASSERT_EQUALS('A', number_cast<char>('A'));
     UTEST_ASSERT_EQUALS(65, number_cast<int>('A'));
+    UTEST_ASSERT_EQUALS('B', number_cast<char>(66));
     
-    // Test char boundary values using numeric_limits
-    UTEST_ASSERT_EQUALS(std::numeric_limits<char>::max(), 
-                        number_cast<char>(std::numeric_limits<char>::max()));
-    UTEST_ASSERT_EQUALS(std::numeric_limits<char>::min(), 
-                        number_cast<char>(std::numeric_limits<char>::min()));
-    UTEST_ASSERT_EQUALS(std::numeric_limits<unsigned char>::max(), 
-                        number_cast<unsigned char>(std::numeric_limits<unsigned char>::max()));
+    // Basic char type conversions
+    char c = 'X';
+    unsigned char uc = 88;
+    signed char sc = 'Y';
+    
+    UTEST_ASSERT_EQUALS(static_cast<unsigned char>('X'), number_cast<unsigned char>(c));
+    UTEST_ASSERT_EQUALS(88, number_cast<int>(uc));
+    UTEST_ASSERT_EQUALS('Y', number_cast<char>(sc));
 }
 
-// Test overflow detection - signed to unsigned
-UTEST_FUNC_DEF(NumberCastSignedToUnsigned) {
-    // Negative values should throw when casting to unsigned
+// Test signed to unsigned overflow detection
+UTEST_FUNC_DEF(SignedToUnsignedOverflow) {
+    // Negative values should always throw when casting to unsigned
     UTEST_ASSERT_THROWS([](){ number_cast<unsigned int>(-1); });
     UTEST_ASSERT_THROWS([](){ number_cast<unsigned char>(-1); });
     UTEST_ASSERT_THROWS([](){ number_cast<unsigned short>(-42); });
+    UTEST_ASSERT_THROWS([](){ number_cast<unsigned long>(-100); });
     
     // Test edge case: most negative value
     UTEST_ASSERT_THROWS([](){ 
         number_cast<unsigned int>(std::numeric_limits<int>::min()); 
     });
     
-    // Large positive values should work
+    // Large positive values should work if they fit
     int positive_val = 1000;
     UTEST_ASSERT_EQUALS(1000u, number_cast<unsigned int>(positive_val));
     
-    // Test maximum signed value to unsigned (should work)
+    // Test maximum signed value to unsigned (should always work)
     UTEST_ASSERT_EQUALS(static_cast<unsigned int>(std::numeric_limits<int>::max()), 
                         number_cast<unsigned int>(std::numeric_limits<int>::max()));
 }
 
-// Test overflow detection - unsigned to signed
-UTEST_FUNC_DEF(NumberCastUnsignedToSigned) {
-    // Values that are too large for signed type should throw
+// Test unsigned to signed overflow detection  
+UTEST_FUNC_DEF(UnsignedToSignedOverflow) {
+    // Values that exceed signed type maximum should throw
     unsigned int large_val = static_cast<unsigned int>(std::numeric_limits<int>::max()) + 1u;
     UTEST_ASSERT_THROWS([large_val](){ number_cast<int>(large_val); });
     
@@ -65,148 +80,41 @@ UTEST_FUNC_DEF(NumberCastUnsignedToSigned) {
     UTEST_ASSERT_EQUALS(std::numeric_limits<int>::max(), 
                         number_cast<int>(max_signed_as_unsigned));
     
-    // Values within range should work
+    // Values within signed range should work
     unsigned int small_val = 1000u;
     UTEST_ASSERT_EQUALS(1000, number_cast<int>(small_val));
 }
 
-// Test boundary value casting
-UTEST_FUNC_DEF(NumberCastBoundaryValues) {
-    // Test maximum values
-    UTEST_ASSERT_EQUALS(std::numeric_limits<int>::max(), 
-                        number_cast<int>(std::numeric_limits<int>::max()));
-    
-    // Test minimum values
-    UTEST_ASSERT_EQUALS(std::numeric_limits<int>::min(), 
-                        number_cast<int>(std::numeric_limits<int>::min()));
-    
-    // Test zero
-    UTEST_ASSERT_EQUALS(0, number_cast<int>(0));
-    UTEST_ASSERT_EQUALS(0u, number_cast<unsigned int>(0));
-}
-
-// Test narrowing conversions
-UTEST_FUNC_DEF(NumberCastNarrowing) {
+// Test narrowing conversions that may overflow
+UTEST_FUNC_DEF(NarrowingConversions) {
     // Large long to int should throw if it doesn't fit
-    long large_long = static_cast<long>(std::numeric_limits<int>::max()) + 1;
-    UTEST_ASSERT_THROWS([large_long](){ number_cast<int>(large_long); });
-    
-    // Test maximum long value (should throw when casting to int if long > int)
     if (std::numeric_limits<long>::max() > std::numeric_limits<int>::max()) {
+        long large_long = static_cast<long>(std::numeric_limits<int>::max()) + 1;
+        UTEST_ASSERT_THROWS([large_long](){ number_cast<int>(large_long); });
+        
+        // Test maximum long value 
         UTEST_ASSERT_THROWS([](){ 
             number_cast<int>(std::numeric_limits<long>::max()); 
         });
     }
     
-    // Test minimum long value (should throw when casting to int if long < int)
+    // Test minimum long value 
     if (std::numeric_limits<long>::min() < std::numeric_limits<int>::min()) {
         UTEST_ASSERT_THROWS([](){ 
             number_cast<int>(std::numeric_limits<long>::min()); 
         });
     }
     
-    // Small long to int should work
+    // Values within target range should work
     long small_long = 42;
     UTEST_ASSERT_EQUALS(42, number_cast<int>(small_long));
     
-    // Test casting within valid range
     long valid_long = std::numeric_limits<int>::max();
     UTEST_ASSERT_EQUALS(std::numeric_limits<int>::max(), number_cast<int>(valid_long));
 }
 
-// Test floating point to integer conversion
-UTEST_FUNC_DEF(NumberCastFloatToInt) {
-    // Normal conversion
-    UTEST_ASSERT_EQUALS(42, number_cast<int>(42.0));
-    UTEST_ASSERT_EQUALS(42, number_cast<int>(42.7)); // Should truncate
-    
-    // Large float that doesn't fit in int should throw
-    float large_float = static_cast<float>(std::numeric_limits<int>::max()) * 2.0f;
-    UTEST_ASSERT_THROWS([large_float](){ number_cast<int>(large_float); });
-    
-    // Test edge cases with numeric_limits
-    double max_int_as_double = static_cast<double>(std::numeric_limits<int>::max());
-    UTEST_ASSERT_EQUALS(std::numeric_limits<int>::max(), number_cast<int>(max_int_as_double));
-    
-    double min_int_as_double = static_cast<double>(std::numeric_limits<int>::min());
-    UTEST_ASSERT_EQUALS(std::numeric_limits<int>::min(), number_cast<int>(min_int_as_double));
-    
-    // Test float/double values that exceed int range
-    if (std::numeric_limits<double>::max() > std::numeric_limits<int>::max()) {
-        UTEST_ASSERT_THROWS([](){ 
-            number_cast<int>(std::numeric_limits<double>::max()); 
-        });
-    }
-    
-    if (std::numeric_limits<double>::lowest() < std::numeric_limits<int>::min()) {
-        UTEST_ASSERT_THROWS([](){ 
-            number_cast<int>(std::numeric_limits<double>::lowest()); 
-        });
-    }
-}
-
-// Test char_cast function
-UTEST_FUNC_DEF(CharCastBasic) {
-    // Basic char casting
-    char c1 = 'A';
-    unsigned char uc1 = 65;
-    
-    UTEST_ASSERT_EQUALS('A', char_cast<char>(uc1));
-    UTEST_ASSERT_EQUALS(static_cast<unsigned char>('A'), char_cast<unsigned char>(c1));
-    UTEST_ASSERT_EQUALS(static_cast<signed char>('A'), char_cast<signed char>(c1));
-}
-
-// Test char_cast boundary values
-UTEST_FUNC_DEF(CharCastBoundary) {
-    // Test boundary values for char types using numeric_limits
-    unsigned char max_uchar = std::numeric_limits<unsigned char>::max();
-    signed char max_schar = std::numeric_limits<signed char>::max();
-    signed char min_schar = std::numeric_limits<signed char>::min();
-    
-    // These should work without throwing (char_cast is always safe between char types)
-    UTEST_ASSERT_EQUALS(static_cast<char>(max_schar), char_cast<char>(max_schar));
-    UTEST_ASSERT_EQUALS(static_cast<unsigned char>(max_schar), char_cast<unsigned char>(max_schar));
-    
-    // Test maximum unsigned char to other char types
-    UTEST_ASSERT_EQUALS(static_cast<char>(max_uchar), char_cast<char>(max_uchar));
-    UTEST_ASSERT_EQUALS(static_cast<signed char>(max_uchar), char_cast<signed char>(max_uchar));
-    
-    // Test minimum signed char to other char types
-    UTEST_ASSERT_EQUALS(static_cast<char>(min_schar), char_cast<char>(min_schar));
-    UTEST_ASSERT_EQUALS(static_cast<unsigned char>(min_schar), char_cast<unsigned char>(min_schar));
-    
-    // Negative signed char to unsigned char should work (reinterpret)
-    UTEST_ASSERT_EQUALS(static_cast<unsigned char>(-1), char_cast<unsigned char>(static_cast<signed char>(-1)));
-}
-
-// Test macro versions
-UTEST_FUNC_DEF(MacroVersions) {
-    // Test NUMBER_CAST macro
-    int value = 42;
-    UTEST_ASSERT_EQUALS(42u, NUMBER_CAST(unsigned int, value));
-    
-    // Test CHAR_CAST macro
-    char c = 'X';
-    UTEST_ASSERT_EQUALS(static_cast<unsigned char>('X'), CHAR_CAST(unsigned char, c));
-}
-
-// Test macro exception information
-UTEST_FUNC_DEF(MacroExceptionInfo) {
-    // Test that macro provides additional context in exception
-    try {
-        int negative = -1;
-        NUMBER_CAST(unsigned int, negative);
-        UTEST_ASSERT_TRUE(false); // Should not reach here
-    } catch (const ncast::cast_exception& e) {
-        std::string msg = e.what();
-        // Should contain file and line information
-        UTEST_ASSERT_STR_CONTAINS(msg, "test_ncast.cpp");
-        UTEST_ASSERT_STR_CONTAINS(msg, "Line");
-    }
-}
-
-// Test edge cases with different integer sizes
-UTEST_FUNC_DEF(NumberCastIntegerSizes) {
+// Test integer size edge cases
+UTEST_FUNC_DEF(IntegerSizeEdgeCases) {
     // Test short to char (may overflow)
     if (std::numeric_limits<short>::max() > std::numeric_limits<char>::max()) {
         short large_short = std::numeric_limits<short>::max();
@@ -229,21 +137,280 @@ UTEST_FUNC_DEF(NumberCastIntegerSizes) {
                         number_cast<signed char>(valid_uchar));
 }
 
+// =============================================================================
+// FLOATING POINT CONVERSION TESTS
+// =============================================================================
+
+// Test floating point to integer conversion
+UTEST_FUNC_DEF(FloatToIntConversion) {
+    // Normal conversions with truncation
+    UTEST_ASSERT_EQUALS(42, number_cast<int>(42.0));
+    UTEST_ASSERT_EQUALS(42, number_cast<int>(42.7)); // Should truncate
+    UTEST_ASSERT_EQUALS(42, number_cast<int>(42.9)); // Should truncate
+    UTEST_ASSERT_EQUALS(-42, number_cast<int>(-42.7)); // Should truncate toward zero
+    
+    // Test exact boundary values
+    double max_int_as_double = static_cast<double>(std::numeric_limits<int>::max());
+    UTEST_ASSERT_EQUALS(std::numeric_limits<int>::max(), number_cast<int>(max_int_as_double));
+    
+    double min_int_as_double = static_cast<double>(std::numeric_limits<int>::min());
+    UTEST_ASSERT_EQUALS(std::numeric_limits<int>::min(), number_cast<int>(min_int_as_double));
+    
+    // Values that exceed int range should throw
+    if (std::numeric_limits<double>::max() > std::numeric_limits<int>::max()) {
+        double large_double = static_cast<double>(std::numeric_limits<int>::max()) * 2.0;
+        UTEST_ASSERT_THROWS([large_double](){ number_cast<int>(large_double); });
+        
+        UTEST_ASSERT_THROWS([](){ 
+            number_cast<int>(std::numeric_limits<double>::max()); 
+        });
+    }
+    
+    if (std::numeric_limits<double>::lowest() < std::numeric_limits<int>::min()) {
+        UTEST_ASSERT_THROWS([](){ 
+            number_cast<int>(std::numeric_limits<double>::lowest()); 
+        });
+    }
+    
+    // Test float edge cases
+    float large_float = static_cast<float>(std::numeric_limits<int>::max()) * 2.0f;
+    UTEST_ASSERT_THROWS([large_float](){ number_cast<int>(large_float); });
+}
+
+// =============================================================================
+// CHAR_CAST SPECIFIC TESTS  
+// =============================================================================
+
+// Test char_cast basic functionality
+UTEST_FUNC_DEF(CharCastBasic) {
+    // Basic char type conversions (always safe - reinterpret behavior)
+    char c1 = 'A';
+    unsigned char uc1 = 65;
+    signed char sc1 = 'B';
+    
+    UTEST_ASSERT_EQUALS('A', char_cast<char>(uc1));
+    UTEST_ASSERT_EQUALS(static_cast<unsigned char>('A'), char_cast<unsigned char>(c1));
+    UTEST_ASSERT_EQUALS(static_cast<signed char>('A'), char_cast<signed char>(c1));
+    UTEST_ASSERT_EQUALS(static_cast<char>('B'), char_cast<char>(sc1));
+}
+
+// Test char_cast with boundary values and edge cases
+UTEST_FUNC_DEF(CharCastBoundary) {
+    // Test boundary values for char types using numeric_limits
+    unsigned char max_uchar = std::numeric_limits<unsigned char>::max();
+    signed char max_schar = std::numeric_limits<signed char>::max();
+    signed char min_schar = std::numeric_limits<signed char>::min();
+    
+    // char_cast always succeeds (reinterpret behavior)
+    UTEST_ASSERT_EQUALS(static_cast<char>(max_schar), char_cast<char>(max_schar));
+    UTEST_ASSERT_EQUALS(static_cast<unsigned char>(max_schar), char_cast<unsigned char>(max_schar));
+    
+    // Test maximum unsigned char to other char types
+    UTEST_ASSERT_EQUALS(static_cast<char>(max_uchar), char_cast<char>(max_uchar));
+    UTEST_ASSERT_EQUALS(static_cast<signed char>(max_uchar), char_cast<signed char>(max_uchar));
+    
+    // Test minimum signed char to other char types
+    UTEST_ASSERT_EQUALS(static_cast<char>(min_schar), char_cast<char>(min_schar));
+    UTEST_ASSERT_EQUALS(static_cast<unsigned char>(min_schar), char_cast<unsigned char>(min_schar));
+    
+    // Negative signed char to unsigned char (reinterpret behavior)
+    signed char neg_one = -1;
+    UTEST_ASSERT_EQUALS(static_cast<unsigned char>(-1), char_cast<unsigned char>(neg_one));
+    UTEST_ASSERT_EQUALS(255, static_cast<int>(char_cast<unsigned char>(neg_one))); // -1 becomes 255
+}
+
+// Test comprehensive int-to-char conversions using numeric_limits
+UTEST_FUNC_DEF(IntToCharConversions) {
+    // ASCII printable range (32-126) - always safe with number_cast
+    UTEST_ASSERT_EQUALS('A', number_cast<char>(65));
+    UTEST_ASSERT_EQUALS('Z', number_cast<char>(90));
+    UTEST_ASSERT_EQUALS('a', number_cast<char>(97));
+    UTEST_ASSERT_EQUALS('z', number_cast<char>(122));
+    UTEST_ASSERT_EQUALS('0', number_cast<char>(48));
+    UTEST_ASSERT_EQUALS('9', number_cast<char>(57));
+    UTEST_ASSERT_EQUALS(' ', number_cast<char>(32));
+    
+    // Test boundary cases using numeric_limits
+    UTEST_ASSERT_EQUALS(std::numeric_limits<char>::max(), 
+                        number_cast<char>(static_cast<int>(std::numeric_limits<char>::max())));
+    UTEST_ASSERT_EQUALS(std::numeric_limits<char>::min(), 
+                        number_cast<char>(static_cast<int>(std::numeric_limits<char>::min())));
+    
+    // Test unsigned char range using numeric_limits
+    UTEST_ASSERT_EQUALS(std::numeric_limits<unsigned char>::max(), 
+                        number_cast<unsigned char>(static_cast<int>(std::numeric_limits<unsigned char>::max())));
+    UTEST_ASSERT_EQUALS(static_cast<unsigned char>(128), 
+                        number_cast<unsigned char>(128));
+    
+    // Values outside char range should throw
+    UTEST_ASSERT_THROWS([](){ number_cast<char>(256); });
+    UTEST_ASSERT_THROWS([](){ number_cast<char>(1000); });
+    if (std::numeric_limits<char>::min() >= 0) { // unsigned char
+        UTEST_ASSERT_THROWS([](){ number_cast<char>(-1); });
+    } else { // signed char
+        UTEST_ASSERT_THROWS([](){ number_cast<char>(-200); });
+    }
+    
+    // Values outside unsigned char range should throw  
+    UTEST_ASSERT_THROWS([](){ number_cast<unsigned char>(256); });
+    UTEST_ASSERT_THROWS([](){ number_cast<unsigned char>(-1); });
+    UTEST_ASSERT_THROWS([](){ number_cast<unsigned char>(1000); });
+}
+
+// Test char_cast for different char type conversions (not int-to-char)
+UTEST_FUNC_DEF(CharToCharWithCharCast) {
+    // char_cast only works between char types - test this behavior
+    
+    // Test char to other char types
+    char c_val = 'A';
+    UTEST_ASSERT_EQUALS(static_cast<unsigned char>('A'), char_cast<unsigned char>(c_val));
+    UTEST_ASSERT_EQUALS(static_cast<signed char>('A'), char_cast<signed char>(c_val));
+    
+    // Test unsigned char to other char types
+    unsigned char uc_val = 200; // Value that would be problematic for signed char
+    char from_uc = char_cast<char>(uc_val);
+    signed char from_uc_signed = char_cast<signed char>(uc_val);
+    
+    // These should match static_cast behavior (reinterpret, no validation)
+    UTEST_ASSERT_EQUALS(static_cast<char>(uc_val), from_uc);
+    UTEST_ASSERT_EQUALS(static_cast<signed char>(uc_val), from_uc_signed);
+    
+    // Test signed char to other char types
+    signed char sc_neg = -50;
+    char from_sc = char_cast<char>(sc_neg);
+    unsigned char from_sc_unsigned = char_cast<unsigned char>(sc_neg);
+    
+    // Should match static_cast behavior
+    UTEST_ASSERT_EQUALS(static_cast<char>(sc_neg), from_sc);
+    UTEST_ASSERT_EQUALS(static_cast<unsigned char>(sc_neg), from_sc_unsigned);
+    
+    // Test boundary values using numeric_limits
+    unsigned char max_uchar = std::numeric_limits<unsigned char>::max();
+    signed char min_schar = std::numeric_limits<signed char>::min();
+    
+    // char_cast should work without throwing (unlike number_cast)
+    char from_max_uc = char_cast<char>(max_uchar);
+    unsigned char from_min_sc = char_cast<unsigned char>(min_schar);
+    
+    UTEST_ASSERT_EQUALS(static_cast<char>(max_uchar), from_max_uc);
+    UTEST_ASSERT_EQUALS(static_cast<unsigned char>(min_schar), from_min_sc);
+    
+    // Compare with number_cast behavior for int-to-char
+    // number_cast does validation, char_cast does not
+    int safe_int = 65;
+    UTEST_ASSERT_EQUALS('A', number_cast<char>(safe_int));
+    
+    int unsafe_int = 300;
+    UTEST_ASSERT_THROWS([unsafe_int](){ number_cast<char>(unsafe_int); });
+    // Note: char_cast cannot be used with int, it's char-to-char only
+}
+
+// =============================================================================
+// MACRO TESTS
+// =============================================================================
+
+// Test macro versions of the functions
+UTEST_FUNC_DEF(MacroVersions) {
+    // Test NUMBER_CAST macro
+    int value = 42;
+    UTEST_ASSERT_EQUALS(42u, NUMBER_CAST(unsigned int, value));
+    UTEST_ASSERT_EQUALS('*', NUMBER_CAST(char, 42));
+    
+    // Test CHAR_CAST macro
+    char c = 'X';
+    UTEST_ASSERT_EQUALS(static_cast<unsigned char>('X'), CHAR_CAST(unsigned char, c));
+    
+    signed char sc = -50;
+    UTEST_ASSERT_EQUALS(static_cast<unsigned char>(-50), CHAR_CAST(unsigned char, sc));
+}
+
+// Test macro exception information and location reporting
+UTEST_FUNC_DEF(MacroExceptionInfo) {
+    // Test that NUMBER_CAST macro provides file and line information in exceptions
+    try {
+        int negative = -1;
+        NUMBER_CAST(unsigned int, negative);
+        UTEST_ASSERT_TRUE(false); // Should not reach here
+    } catch (const ncast::cast_exception& e) {
+        std::string msg = e.what();
+        // Should contain file and line information
+        UTEST_ASSERT_STR_CONTAINS(msg, "test_ncast.cpp");
+        UTEST_ASSERT_STR_CONTAINS(msg, "Line");
+    }
+    
+    // Test that regular function calls don't have as much location info
+    try {
+        number_cast<unsigned int>(-1);
+        UTEST_ASSERT_TRUE(false); // Should not reach here  
+    } catch (const ncast::cast_exception& e) {
+        std::string msg = e.what();
+        // Should contain basic error info but not necessarily file/line
+        UTEST_ASSERT_STR_CONTAINS(msg, "cast");
+    }
+}
+
+// =============================================================================
+// INTEGRATION AND EDGE CASE TESTS
+// =============================================================================
+
+// Test combination scenarios and edge cases
+UTEST_FUNC_DEF(IntegrationTests) {
+    // Test chained conversions
+    int original = 65;
+    char as_char = number_cast<char>(original);
+    int back_to_int = number_cast<int>(as_char);
+    UTEST_ASSERT_EQUALS(original, back_to_int);
+    
+    // Test different paths to same result
+    unsigned char uc1 = number_cast<unsigned char>(65);
+    unsigned char uc2 = char_cast<unsigned char>('A');
+    UTEST_ASSERT_EQUALS(uc1, uc2);
+    
+    // Test zero in different types
+    UTEST_ASSERT_EQUALS(0, number_cast<int>(0.0));
+    UTEST_ASSERT_EQUALS('\0', number_cast<char>(0));
+    UTEST_ASSERT_EQUALS(0u, number_cast<unsigned int>(0));
+    
+    // Test one in different types
+    UTEST_ASSERT_EQUALS(1, number_cast<int>(1.0));
+    UTEST_ASSERT_EQUALS(1u, number_cast<unsigned int>(1));
+    UTEST_ASSERT_EQUALS(static_cast<char>(1), number_cast<char>(1));
+    
+    // Test boundary interactions
+    UTEST_ASSERT_EQUALS(std::numeric_limits<unsigned char>::max(), 
+                        number_cast<unsigned char>(std::numeric_limits<unsigned char>::max()));
+    UTEST_ASSERT_EQUALS(std::numeric_limits<signed char>::min(), 
+                        number_cast<signed char>(std::numeric_limits<signed char>::min()));
+}
+
 int main() {
     UTEST_PROLOG();
     
+    // Basic functionality tests
     UTEST_FUNC(NumberCastBasic);
-    UTEST_FUNC(NumberCastChar);
-    UTEST_FUNC(NumberCastSignedToUnsigned);
-    UTEST_FUNC(NumberCastUnsignedToSigned);
-    UTEST_FUNC(NumberCastBoundaryValues);
-    UTEST_FUNC(NumberCastNarrowing);
-    UTEST_FUNC(NumberCastFloatToInt);
+    UTEST_FUNC(NumberCastCharBasic);
+    
+    // Overflow and underflow tests
+    UTEST_FUNC(SignedToUnsignedOverflow);
+    UTEST_FUNC(UnsignedToSignedOverflow);
+    UTEST_FUNC(NarrowingConversions);
+    UTEST_FUNC(IntegerSizeEdgeCases);
+    
+    // Floating point tests
+    UTEST_FUNC(FloatToIntConversion);
+    
+    // char_cast specific tests
     UTEST_FUNC(CharCastBasic);
     UTEST_FUNC(CharCastBoundary);
+    UTEST_FUNC(IntToCharConversions);
+    UTEST_FUNC(CharToCharWithCharCast);
+    
+    // Macro tests
     UTEST_FUNC(MacroVersions);
     UTEST_FUNC(MacroExceptionInfo);
-    UTEST_FUNC(NumberCastIntegerSizes);
+    
+    // Integration tests
+    UTEST_FUNC(IntegrationTests);
     
     UTEST_EPILOG();
     
