@@ -11,7 +11,7 @@
  * to prevent dangerous casts that could lead to unexpected behavior.
  * 
  * Features:
- * - number_cast: Safe casting between all numeric types and char
+ * - numeric_cast: Safe casting between all numeric types and char
  * - char_cast: Safe casting between signed/unsigned chars only
  * - Macro versions with accurate location information
  * - Optional validation (can be disabled with NCAST_DISABLE_VALIDATION)
@@ -21,14 +21,14 @@
  * 
  * // Safe numeric casting
  * int value = 42;
- * unsigned int result = number_cast<unsigned int>(value);
+ * unsigned int result = numeric_cast<unsigned int>(value);
  * 
  * // Safe char casting
  * signed char sc = 'A';
  * unsigned char uc = char_cast<unsigned char>(sc);
  * 
  * // Macro versions with location info
- * auto result2 = NUMBER_CAST(unsigned int, value);
+ * auto result2 = NUMERIC_CAST(unsigned int, value);
  * auto result3 = CHAR_CAST(unsigned char, sc);
  * @endcode
  */
@@ -136,7 +136,7 @@ namespace detail {
      * @brief Helper function to perform safe numeric casting with validation
      */
     template<typename ToType, typename FromType>
-    ToType number_cast_impl(FromType value, const char* file, int line, const char* function) {
+    ToType numeric_cast_impl(FromType value, const char* file, int line, const char* function) {
         static_assert(is_numeric_or_char<ToType>::value, "ToType must be a numeric type or char");
         static_assert(is_numeric_or_char<FromType>::value, "FromType must be a numeric type or char");
         
@@ -202,11 +202,11 @@ namespace detail {
  * @return Safely cast value
  * @throws cast_exception if validation fails
  * 
- * Usage: auto result = number_cast<int>(unsigned_value);
+ * Usage: auto result = numeric_cast<int>(unsigned_value);
  */
 template<typename ToType, typename FromType>
-ToType number_cast(FromType value) {
-    return detail::number_cast_impl<ToType>(value, "unknown", 0, "unknown");
+ToType numeric_cast(FromType value) {
+    return detail::numeric_cast_impl<ToType>(value, "unknown", 0, "unknown");
 }
 
 /**
@@ -228,15 +228,15 @@ ToType char_cast(FromType value) {
 }
 
 /**
- * @brief Macro version of number_cast with accurate location information
+ * @brief Macro version of numeric_cast with accurate location information
  * 
  * This macro captures file, line, and function information at the call site,
  * providing accurate location details in exception messages.
  * 
- * Usage: auto result = NUMBER_CAST(int, unsigned_value);
+ * Usage: auto result = NUMERIC_CAST(int, unsigned_value);
  */
-#define NUMBER_CAST(ToType, value) \
-    ncast::detail::number_cast_impl<ToType>(value, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+#define NUMERIC_CAST(ToType, value) \
+    ncast::detail::numeric_cast_impl<ToType>(value, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 /**
  * @brief Macro version of char_cast with accurate location information

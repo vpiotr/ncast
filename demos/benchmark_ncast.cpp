@@ -4,12 +4,12 @@
  * 
  * This benchmark compares three casting approaches:
  * 1. static_cast (baseline)
- * 2. number_cast with validation disabled (via separate module)
- * 3. number_cast with validation enabled
+ * 2. numeric_cast with validation disabled (via separate module)
+ * 3. numeric_cast with validation enabled
  * 
  * The "no validation" test uses a multi-module approach where
  * benchmark_ncast_no_validation.cpp is compiled with NCAST_DISABLE_VALIDATION
- * defined, ensuring we test the true performance of number_cast without
+ * defined, ensuring we test the true performance of numeric_cast without
  * validation rather than simulating it.
  */
 
@@ -67,7 +67,7 @@ double heavy_computation_static_cast(const std::vector<long>& data) {
     return result;
 }
 
-// Heavy computation function using number_cast without validation
+// Heavy computation function using numeric_cast without validation
 // Note: This function is implemented in a separate compilation unit
 // with NCAST_DISABLE_VALIDATION defined for true performance testing
 double heavy_computation_ncast_no_validation(const std::vector<long>& data) {
@@ -75,7 +75,7 @@ double heavy_computation_ncast_no_validation(const std::vector<long>& data) {
     return heavy_computation_ncast_no_validation_real(data, ITERATIONS);
 }
 
-// Heavy computation function using number_cast with validation
+// Heavy computation function using numeric_cast with validation
 double heavy_computation_ncast_with_validation(const std::vector<long>& data) {
     double result = 0.0;
     
@@ -83,10 +83,10 @@ double heavy_computation_ncast_with_validation(const std::vector<long>& data) {
         long value = data[i % data.size()];
         
         try {
-            // Use number_cast with validation
-            int casted_value = number_cast<int>(value);
-            unsigned int unsigned_val = number_cast<unsigned int>(std::abs(casted_value));
-            short short_val = number_cast<short>(unsigned_val % 32767);
+            // Use numeric_cast with validation
+            int casted_value = numeric_cast<int>(value);
+            unsigned int unsigned_val = numeric_cast<unsigned int>(std::abs(casted_value));
+            short short_val = numeric_cast<short>(unsigned_val % 32767);
             
             // Some mathematical operations
             double temp = std::sin(short_val * 0.001) + std::cos(unsigned_val * 0.0001);
@@ -100,7 +100,7 @@ double heavy_computation_ncast_with_validation(const std::vector<long>& data) {
     return result;
 }
 
-// Heavy computation function using NUMBER_CAST macro without validation
+// Heavy computation function using NUMERIC_CAST macro without validation
 // Note: This function is implemented in a separate compilation unit
 // with NCAST_DISABLE_VALIDATION defined for true performance testing
 double heavy_computation_macro_no_validation(const std::vector<long>& data) {
@@ -108,7 +108,7 @@ double heavy_computation_macro_no_validation(const std::vector<long>& data) {
     return heavy_computation_macro_no_validation_real(data, ITERATIONS);
 }
 
-// Heavy computation function using NUMBER_CAST macro with validation
+// Heavy computation function using NUMERIC_CAST macro with validation
 double heavy_computation_macro_with_validation(const std::vector<long>& data) {
     double result = 0.0;
     
@@ -116,10 +116,10 @@ double heavy_computation_macro_with_validation(const std::vector<long>& data) {
         long value = data[i % data.size()];
         
         try {
-            // Use NUMBER_CAST macro with validation and location info
-            int casted_value = NUMBER_CAST(int, value);
-            unsigned int unsigned_val = NUMBER_CAST(unsigned int, std::abs(casted_value));
-            short short_val = NUMBER_CAST(short, unsigned_val % 32767);
+            // Use NUMERIC_CAST macro with validation and location info
+            int casted_value = NUMERIC_CAST(int, value);
+            unsigned int unsigned_val = NUMERIC_CAST(unsigned int, std::abs(casted_value));
+            short short_val = NUMERIC_CAST(short, unsigned_val % 32767);
             
             // Some mathematical operations
             double temp = std::sin(short_val * 0.001) + std::cos(unsigned_val * 0.0001);
@@ -305,10 +305,10 @@ double warmup_ncast_with_validation(const std::vector<long>& data) {
         long value = data[i % data.size()];
         
         try {
-            // Use number_cast with validation
-            int casted_value = number_cast<int>(value);
-            unsigned int unsigned_val = number_cast<unsigned int>(std::abs(casted_value));
-            short short_val = number_cast<short>(unsigned_val % 32767);
+            // Use numeric_cast with validation
+            int casted_value = numeric_cast<int>(value);
+            unsigned int unsigned_val = numeric_cast<unsigned int>(std::abs(casted_value));
+            short short_val = numeric_cast<short>(unsigned_val % 32767);
             
             // Some mathematical operations
             double temp = std::sin(short_val * 0.001) + std::cos(unsigned_val * 0.0001);
@@ -334,10 +334,10 @@ double warmup_macro_with_validation(const std::vector<long>& data) {
         long value = data[i % data.size()];
         
         try {
-            // Use NUMBER_CAST macro with validation and location info
-            int casted_value = NUMBER_CAST(int, value);
-            unsigned int unsigned_val = NUMBER_CAST(unsigned int, std::abs(casted_value));
-            short short_val = NUMBER_CAST(short, unsigned_val % 32767);
+            // Use NUMERIC_CAST macro with validation and location info
+            int casted_value = NUMERIC_CAST(int, value);
+            unsigned int unsigned_val = NUMERIC_CAST(unsigned int, std::abs(casted_value));
+            short short_val = NUMERIC_CAST(short, unsigned_val % 32767);
             
             // Some mathematical operations
             double temp = std::sin(short_val * 0.001) + std::cos(unsigned_val * 0.0001);
@@ -371,23 +371,23 @@ int main() {
     warmup_static_cast(test_data);
     std::cout << " done." << std::endl;
     
-    // Warm-up: number_cast without validation (real implementation)
-    std::cout << "Warming up number_cast (no validation)..." << std::flush;
+    // Warm-up: numeric_cast without validation (real implementation)
+    std::cout << "Warming up numeric_cast (no validation)..." << std::flush;
     warmup_ncast_no_validation(test_data);
     std::cout << " done." << std::endl;
     
-    // Warm-up: number_cast with validation
-    std::cout << "Warming up number_cast (with validation)..." << std::flush;
+    // Warm-up: numeric_cast with validation
+    std::cout << "Warming up numeric_cast (with validation)..." << std::flush;
     warmup_ncast_with_validation(test_data);
     std::cout << " done." << std::endl;
     
-    // Warm-up: NUMBER_CAST macro without validation (real implementation)
-    std::cout << "Warming up NUMBER_CAST (no validation)..." << std::flush;
+    // Warm-up: NUMERIC_CAST macro without validation (real implementation)
+    std::cout << "Warming up NUMERIC_CAST (no validation)..." << std::flush;
     warmup_macro_no_validation(test_data);
     std::cout << " done." << std::endl;
     
-    // Warm-up: NUMBER_CAST macro with validation
-    std::cout << "Warming up NUMBER_CAST (with validation)..." << std::flush;
+    // Warm-up: NUMERIC_CAST macro with validation
+    std::cout << "Warming up NUMERIC_CAST (with validation)..." << std::flush;
     warmup_macro_with_validation(test_data);
     std::cout << " done." << std::endl;
     
@@ -402,8 +402,8 @@ int main() {
     results.emplace_back("static_cast", time1);
     std::cout << " (" << std::fixed << std::setprecision(2) << time1 << "ms)" << std::endl;
     
-    // Benchmark 2: number_cast without validation (real implementation)
-    std::cout << "Running benchmark 2/5: number_cast (no validation)..." << std::flush;
+    // Benchmark 2: numeric_cast without validation (real implementation)
+    std::cout << "Running benchmark 2/5: numeric_cast (no validation)..." << std::flush;
     std::cout << "warming up..." << std::flush;
     volatile double warmup_result2 = warmup_ncast_no_validation(test_data);  // volatile to prevent optimization
     std::cout << " measuring..." << std::flush;
@@ -413,8 +413,8 @@ int main() {
     results.emplace_back("ncast (no validation)", time2);
     std::cout << " (" << std::fixed << std::setprecision(2) << time2 << "ms)" << std::endl;
     
-    // Benchmark 3: number_cast with validation
-    std::cout << "Running benchmark 3/5: number_cast (with validation)..." << std::flush;
+    // Benchmark 3: numeric_cast with validation
+    std::cout << "Running benchmark 3/5: numeric_cast (with validation)..." << std::flush;
     std::cout << "warming up..." << std::flush;
     volatile double warmup_result3 = warmup_ncast_with_validation(test_data);  // volatile to prevent optimization
     std::cout << " measuring..." << std::flush;
@@ -424,8 +424,8 @@ int main() {
     results.emplace_back("ncast (validation)", time3);
     std::cout << " (" << std::fixed << std::setprecision(2) << time3 << "ms)" << std::endl;
     
-    // Benchmark 4: NUMBER_CAST macro without validation (real implementation)
-    std::cout << "Running benchmark 4/5: NUMBER_CAST (no validation)..." << std::flush;
+    // Benchmark 4: NUMERIC_CAST macro without validation (real implementation)
+    std::cout << "Running benchmark 4/5: NUMERIC_CAST (no validation)..." << std::flush;
     std::cout << "warming up..." << std::flush;
     volatile double warmup_result4 = warmup_macro_no_validation(test_data);  // volatile to prevent optimization
     std::cout << " measuring..." << std::flush;
@@ -435,8 +435,8 @@ int main() {
     results.emplace_back("macro (no validation)", time4);
     std::cout << " (" << std::fixed << std::setprecision(2) << time4 << "ms)" << std::endl;
     
-    // Benchmark 5: NUMBER_CAST macro with validation
-    std::cout << "Running benchmark 5/5: NUMBER_CAST (with validation)..." << std::flush;
+    // Benchmark 5: NUMERIC_CAST macro with validation
+    std::cout << "Running benchmark 5/5: NUMERIC_CAST (with validation)..." << std::flush;
     std::cout << "warming up..." << std::flush;
     volatile double warmup_result5 = warmup_macro_with_validation(test_data);  // volatile to prevent optimization
     std::cout << " measuring..." << std::flush;
@@ -453,22 +453,22 @@ int main() {
     std::cout << "\n=== Performance Summary ===" << std::endl;
     std::cout << std::fixed << std::setprecision(2);
     std::cout << "1. static_cast:                  " << std::setw(8) << time1 << " ms" << std::endl;
-    std::cout << "2. number_cast (no validation):  " << std::setw(8) << time2 << " ms";
+    std::cout << "2. numeric_cast (no validation):  " << std::setw(8) << time2 << " ms";
     if (time1 > 0) {
         std::cout << " (" << std::setprecision(1) << (time2/time1) << "x)";
     }
     std::cout << std::endl;
-    std::cout << "3. number_cast (validation):     " << std::setw(8) << time3 << " ms";
+    std::cout << "3. numeric_cast (validation):     " << std::setw(8) << time3 << " ms";
     if (time1 > 0) {
         std::cout << " (" << std::setprecision(1) << (time3/time1) << "x)";
     }
     std::cout << std::endl;
-    std::cout << "4. NUMBER_CAST (no validation):  " << std::setw(8) << time4 << " ms";
+    std::cout << "4. NUMERIC_CAST (no validation):  " << std::setw(8) << time4 << " ms";
     if (time1 > 0) {
         std::cout << " (" << std::setprecision(1) << (time4/time1) << "x)";
     }
     std::cout << std::endl;
-    std::cout << "5. NUMBER_CAST (validation):     " << std::setw(8) << time5 << " ms";
+    std::cout << "5. NUMERIC_CAST (validation):     " << std::setw(8) << time5 << " ms";
     if (time1 > 0) {
         std::cout << " (" << std::setprecision(1) << (time5/time1) << "x)";
     }

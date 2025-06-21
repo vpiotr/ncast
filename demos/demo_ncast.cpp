@@ -9,12 +9,12 @@ void demo_basic_usage() {
     
     // Basic successful casts
     int positive = 42;
-    unsigned int result1 = number_cast<unsigned int>(positive);
-    std::cout << "number_cast<unsigned int>(" << positive << ") = " << result1 << std::endl;
+    unsigned int result1 = numeric_cast<unsigned int>(positive);
+    std::cout << "numeric_cast<unsigned int>(" << positive << ") = " << result1 << std::endl;
     
     // Using macro version
-    unsigned int result2 = NUMBER_CAST(unsigned int, positive);
-    std::cout << "NUMBER_CAST(unsigned int, " << positive << ") = " << result2 << std::endl;
+    unsigned int result2 = NUMERIC_CAST(unsigned int, positive);
+    std::cout << "NUMERIC_CAST(unsigned int, " << positive << ") = " << result2 << std::endl;
     
     // Char casting
     char c = 'A';
@@ -30,7 +30,7 @@ void demo_safe_failures() {
     // Demonstrate safe failure on negative to unsigned
     try {
         int negative = -42;
-        unsigned int result = number_cast<unsigned int>(negative);
+        unsigned int result = numeric_cast<unsigned int>(negative);
         (void)result; // Suppress unused variable warning
         std::cout << "ERROR: This should not execute!" << std::endl;
     } catch (const cast_exception& e) {
@@ -40,7 +40,7 @@ void demo_safe_failures() {
     // Demonstrate overflow protection
     try {
         int big_value = 300;
-        char result = number_cast<char>(big_value);
+        char result = numeric_cast<char>(big_value);
         (void)result; // Suppress unused variable warning
         std::cout << "ERROR: This should not execute!" << std::endl;
     } catch (const cast_exception& e) {
@@ -73,8 +73,8 @@ void demo_limits() {
     // Show casting at the limits
     try {
         int max_char = std::numeric_limits<char>::max();
-        char result = number_cast<char>(max_char);
-        std::cout << "number_cast<char>(" << max_char << ") = " 
+        char result = numeric_cast<char>(max_char);
+        std::cout << "numeric_cast<char>(" << max_char << ") = " 
                   << static_cast<int>(result) << " (at limit)" << std::endl;
     } catch (const cast_exception& e) {
         std::cout << "Exception at limit: " << e.what() << std::endl;
@@ -82,7 +82,7 @@ void demo_limits() {
     
     try {
         int beyond_limit = static_cast<int>(std::numeric_limits<char>::max()) + 1;
-        char result = number_cast<char>(beyond_limit);
+        char result = numeric_cast<char>(beyond_limit);
         (void)result; // Suppress unused variable warning
         std::cout << "ERROR: This should not execute!" << std::endl;
     } catch (const cast_exception& e) {
@@ -97,7 +97,7 @@ void demo_macro_location_info() {
     
     try {
         int negative = -123;
-        unsigned int result = NUMBER_CAST(unsigned int, negative);  // This line will be in error
+        unsigned int result = NUMERIC_CAST(unsigned int, negative);  // This line will be in error
         (void)result; // Suppress unused variable warning
         std::cout << "ERROR: This should not execute!" << std::endl;
     } catch (const cast_exception& e) {
