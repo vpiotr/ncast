@@ -762,7 +762,6 @@ UTEST_FUNC_DEF(ExtremeFloatingPointConversions) {
         // Double mantissa has ~53 bits of precision, so values near 2^53 may lose precision
         if (std::numeric_limits<double>::digits >= 53) {
             double pow_2_52 = std::pow(2.0, 52); // 2^52 should be exactly representable
-            double pow_2_52_plus_1 = pow_2_52 + 1.0; // This should also be exact
             double pow_2_53 = std::pow(2.0, 53); // 2^53 should be exactly representable
             double pow_2_53_plus_1 = pow_2_53 + 1.0; // This might lose precision
             
