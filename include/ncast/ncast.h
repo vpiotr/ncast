@@ -189,19 +189,71 @@ namespace detail {
                 }
             }
             
-            // For floating point comparisons, avoid intermediate casts
-            if (value > static_cast<FromType>(std::numeric_limits<ToType>::max())) {
-                std::ostringstream ss;
-                ss << "Value (" << value << ") exceeds maximum for target type ("
-                   << std::numeric_limits<ToType>::max() << ")";
-                throw cast_exception(ss.str(), file, line, function);
+            // For floating point range checks, use direct comparisons with numeric_limits
+            // but avoid potential precision issues by careful ordering of operations
+            
+            // Check for overflow first (value exceeds max)
+            if (std::is_floating_point<FromType>::value) {
+                // If source is floating point, compare directly with the target max
+                if (std::numeric_limits<ToType>::has_infinity && 
+                    std::numeric_limits<FromType>::has_infinity) {
+                    // Handle infinities specially when both types support them
+                    if (!std::isinf(value) && value > std::numeric_limits<ToType>::max()) {
+                        std::ostringstream ss;
+                        ss << "Value (" << value << ") exceeds maximum for target type ("
+                          << std::numeric_limits<ToType>::max() << ")";
+                        throw cast_exception(ss.str(), file, line, function);
+                    }
+                } else if (value > static_cast<FromType>(std::numeric_limits<ToType>::max())) {
+                    std::ostringstream ss;
+                    ss << "Value (" << value << ") exceeds maximum for target type ("
+                       << std::numeric_limits<ToType>::max() << ")";
+                    throw cast_exception(ss.str(), file, line, function);
+                }
+            } else if (std::is_floating_point<ToType>::value) {
+                // If target is floating point but source is integral
+                // We need to be careful with large integers that might exceed floating point precision
+                // Use a multi-step approach to avoid issues with mixed type comparisons
+                if (value > 0) {
+                    // For positive values
+                    if (static_cast<double>(value) > static_cast<double>(std::numeric_limits<ToType>::max())) {
+                        std::ostringstream ss;
+                        ss << "Value (" << value << ") exceeds maximum for target type ("
+                           << std::numeric_limits<ToType>::max() << ")";
+                        throw cast_exception(ss.str(), file, line, function);
+                    }
+                }
             }
             
-            if (value < static_cast<FromType>(std::numeric_limits<ToType>::lowest())) {
-                std::ostringstream ss;
-                ss << "Value (" << value << ") is below minimum for target type ("
-                   << std::numeric_limits<ToType>::lowest() << ")";
-                throw cast_exception(ss.str(), file, line, function);
+            // Check for underflow (value below lowest)
+            if (std::is_floating_point<FromType>::value) {
+                // If source is floating point, compare directly with the target lowest
+                if (std::numeric_limits<ToType>::has_infinity && 
+                    std::numeric_limits<FromType>::has_infinity) {
+                    // Handle infinities specially when both types support them
+                    if (!std::isinf(value) && value < std::numeric_limits<ToType>::lowest()) {
+                        std::ostringstream ss;
+                        ss << "Value (" << value << ") is below minimum for target type ("
+                           << std::numeric_limits<ToType>::lowest() << ")";
+                        throw cast_exception(ss.str(), file, line, function);
+                    }
+                } else if (value < static_cast<FromType>(std::numeric_limits<ToType>::lowest())) {
+                    std::ostringstream ss;
+                    ss << "Value (" << value << ") is below minimum for target type ("
+                       << std::numeric_limits<ToType>::lowest() << ")";
+                    throw cast_exception(ss.str(), file, line, function);
+                }
+            } else if (std::is_floating_point<ToType>::value) {
+                // If target is floating point but source is integral
+                if (value < 0) {
+                    // For negative values
+                    if (static_cast<double>(value) < static_cast<double>(std::numeric_limits<ToType>::lowest())) {
+                        std::ostringstream ss;
+                        ss << "Value (" << value << ") is below minimum for target type ("
+                           << std::numeric_limits<ToType>::lowest() << ")";
+                        throw cast_exception(ss.str(), file, line, function);
+                    }
+                }
             }
         } else {
             // For integral types, use the original long long intermediate cast
