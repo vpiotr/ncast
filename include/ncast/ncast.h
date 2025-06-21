@@ -38,6 +38,7 @@
 #include <sstream>
 #include <type_traits>
 #include <limits>
+#include <cmath> // For std::isnan and std::isinf
 
 namespace ncast {
 
@@ -159,19 +160,64 @@ namespace detail {
         }
         
         // Check for range overflow/underflow  
-        // Use careful comparison to avoid signed/unsigned comparison warnings
-        if (static_cast<long long>(value) > static_cast<long long>(std::numeric_limits<ToType>::max())) {
-            std::ostringstream ss;
-            ss << "Value (" << value << ") exceeds maximum for target type ("
-               << std::numeric_limits<ToType>::max() << ")";
-            throw cast_exception(ss.str(), file, line, function);
-        }
-        
-        if (static_cast<long long>(value) < static_cast<long long>(std::numeric_limits<ToType>::lowest())) {
-            std::ostringstream ss;
-            ss << "Value (" << value << ") is below minimum for target type ("
-               << std::numeric_limits<ToType>::lowest() << ")";
-            throw cast_exception(ss.str(), file, line, function);
+        // Special handling for floating point to avoid long long cast issues
+        if (std::is_floating_point<FromType>::value || std::is_floating_point<ToType>::value) {
+            // Special handling for NaN and infinity
+            if (std::is_floating_point<FromType>::value) {
+                // Allow NaN to be converted between floating point types
+                if (std::isnan(value)) {
+                    if (std::is_floating_point<ToType>::value) {
+                        return static_cast<ToType>(value);
+                    } else {
+                        // NaN to non-floating point types is invalid
+                        std::ostringstream ss;
+                        ss << "Cannot convert NaN to non-floating-point type";
+                        throw cast_exception(ss.str(), file, line, function);
+                    }
+                }
+                
+                // Allow infinity to be converted between any floating point types
+                if (std::is_floating_point<ToType>::value && std::isinf(value)) {
+                    return static_cast<ToType>(value);
+                }
+                
+                // Handle infinity to non-floating point types
+                if (!std::is_floating_point<ToType>::value && std::isinf(value)) {
+                    std::ostringstream ss;
+                    ss << "Cannot convert infinity to non-floating-point type";
+                    throw cast_exception(ss.str(), file, line, function);
+                }
+            }
+            
+            // For floating point comparisons, avoid intermediate casts
+            if (value > static_cast<FromType>(std::numeric_limits<ToType>::max())) {
+                std::ostringstream ss;
+                ss << "Value (" << value << ") exceeds maximum for target type ("
+                   << std::numeric_limits<ToType>::max() << ")";
+                throw cast_exception(ss.str(), file, line, function);
+            }
+            
+            if (value < static_cast<FromType>(std::numeric_limits<ToType>::lowest())) {
+                std::ostringstream ss;
+                ss << "Value (" << value << ") is below minimum for target type ("
+                   << std::numeric_limits<ToType>::lowest() << ")";
+                throw cast_exception(ss.str(), file, line, function);
+            }
+        } else {
+            // For integral types, use the original long long intermediate cast
+            if (static_cast<long long>(value) > static_cast<long long>(std::numeric_limits<ToType>::max())) {
+                std::ostringstream ss;
+                ss << "Value (" << value << ") exceeds maximum for target type ("
+                   << std::numeric_limits<ToType>::max() << ")";
+                throw cast_exception(ss.str(), file, line, function);
+            }
+            
+            if (static_cast<long long>(value) < static_cast<long long>(std::numeric_limits<ToType>::lowest())) {
+                std::ostringstream ss;
+                ss << "Value (" << value << ") is below minimum for target type ("
+                   << std::numeric_limits<ToType>::lowest() << ")";
+                throw cast_exception(ss.str(), file, line, function);
+            }
         }
 #endif
         return static_cast<ToType>(value);

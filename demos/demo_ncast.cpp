@@ -111,6 +111,39 @@ void demo_macro_location_info() {
     std::cout << std::endl;
 }
 
+void demo_float_conversions() {
+    std::cout << "=== Floating Point Conversion Demo ===" << std::endl;
+    
+    // Integer to float conversions
+    int i = 42;
+    float f = numeric_cast<float>(i);
+    double d = numeric_cast<double>(i);
+    std::cout << "numeric_cast<float>(" << i << ") = " << f << std::endl;
+    std::cout << "numeric_cast<double>(" << i << ") = " << d << std::endl;
+    
+    // Float to double (always safe)
+    float f2 = 3.14159f;
+    double d2 = numeric_cast<double>(f2);
+    std::cout << "numeric_cast<double>(" << f2 << "f) = " << d2 << std::endl;
+    
+    // Double to float (may lose precision but still valid)
+    double d3 = 3.14159265358979323846;
+    float f3 = numeric_cast<float>(d3);
+    std::cout << "numeric_cast<float>(" << d3 << ") = " << f3 << " (precision loss but valid)" << std::endl;
+    
+    // Demonstrate range protection
+    try {
+        double too_large = static_cast<double>(std::numeric_limits<float>::max()) * 2.0;
+        float result = numeric_cast<float>(too_large);
+        (void)result; // Suppress unused variable warning
+        std::cout << "ERROR: This should not execute!" << std::endl;
+    } catch (const cast_exception& e) {
+        std::cout << "Caught expected exception: " << e.what() << std::endl;
+    }
+    
+    std::cout << std::endl;
+}
+
 int main() {
     std::cout << "ncast Library Demonstration" << std::endl;
     std::cout << "===========================" << std::endl << std::endl;
@@ -120,6 +153,7 @@ int main() {
     demo_char_casting();
     demo_limits();
     demo_macro_location_info();
+    demo_float_conversions();
     
     std::cout << "Demo completed successfully!" << std::endl;
     

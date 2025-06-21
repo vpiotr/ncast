@@ -2,6 +2,7 @@
 #include "../include/utest/utest.h"
 #include <climits>
 #include <limits>
+#include <cmath> // For std::isnan, std::isinf, std::pow
 
 using namespace ncast;
 
@@ -141,6 +142,49 @@ UTEST_FUNC_DEF(IntegerSizeEdgeCases) {
 // FLOATING POINT CONVERSION TESTS
 // =============================================================================
 
+// Test integer to floating point conversion
+UTEST_FUNC_DEF(IntToFloatConversion) {
+    // Basic integer to float/double conversions
+    UTEST_ASSERT_EQUALS(42.0f, numeric_cast<float>(42));
+    UTEST_ASSERT_EQUALS(42.0, numeric_cast<double>(42));
+    UTEST_ASSERT_EQUALS(-42.0f, numeric_cast<float>(-42));
+    UTEST_ASSERT_EQUALS(-42.0, numeric_cast<double>(-42));
+    
+    // Unsigned integer to float/double
+    UTEST_ASSERT_EQUALS(42.0f, numeric_cast<float>(42u));
+    UTEST_ASSERT_EQUALS(42.0, numeric_cast<double>(42u));
+    
+    // Large integer values (that can be represented exactly in floating point)
+    UTEST_ASSERT_EQUALS(1000000.0f, numeric_cast<float>(1000000));
+    UTEST_ASSERT_EQUALS(1000000.0, numeric_cast<double>(1000000));
+    
+    // Test maximum integer values
+    int max_int = std::numeric_limits<int>::max();
+    UTEST_ASSERT_EQUALS(static_cast<float>(max_int), numeric_cast<float>(max_int));
+    UTEST_ASSERT_EQUALS(static_cast<double>(max_int), numeric_cast<double>(max_int));
+    
+    // Test minimum integer values
+    int min_int = std::numeric_limits<int>::min();
+    UTEST_ASSERT_EQUALS(static_cast<float>(min_int), numeric_cast<float>(min_int));
+    UTEST_ASSERT_EQUALS(static_cast<double>(min_int), numeric_cast<double>(min_int));
+    
+    // Test large unsigned int (potentially larger than max int)
+    unsigned int large_uint = std::numeric_limits<unsigned int>::max();
+    UTEST_ASSERT_EQUALS(static_cast<float>(large_uint), numeric_cast<float>(large_uint));
+    UTEST_ASSERT_EQUALS(static_cast<double>(large_uint), numeric_cast<double>(large_uint));
+    
+    // Test precision loss for large integers to float
+    // For integers larger than 2^24, float may lose precision
+    if (sizeof(long) * 8 > 24) {
+        long large_precise_int = (1L << 24) - 1; // 2^24 - 1, can be represented exactly
+        UTEST_ASSERT_EQUALS(static_cast<float>(large_precise_int), numeric_cast<float>(large_precise_int));
+        
+        long large_imprecise_int = (1L << 24) + 1; // 2^24 + 1, will lose precision in float
+        // This should still work because we're just checking range, not precision
+        UTEST_ASSERT_EQUALS(static_cast<float>(large_imprecise_int), numeric_cast<float>(large_imprecise_int));
+    }
+}
+
 // Test floating point to integer conversion
 UTEST_FUNC_DEF(FloatToIntConversion) {
     // Normal conversions with truncation
@@ -175,6 +219,137 @@ UTEST_FUNC_DEF(FloatToIntConversion) {
     // Test float edge cases
     float large_float = static_cast<float>(std::numeric_limits<int>::max()) * 2.0f;
     UTEST_ASSERT_THROWS([large_float](){ numeric_cast<int>(large_float); });
+}
+
+// Test floating point to floating point conversion
+UTEST_FUNC_DEF(FloatToDoubleConversion) {
+    // Simple float to double (always safe, no precision loss)
+    float f1 = 42.5f;
+    UTEST_ASSERT_EQUALS(42.5, numeric_cast<double>(f1));
+    
+    // Double to float (may lose precision but should succeed if in range)
+    double d1 = 42.5;
+    UTEST_ASSERT_EQUALS(42.5f, numeric_cast<float>(d1));
+    
+    // Maximum and minimum values
+    float max_float = std::numeric_limits<float>::max();
+    UTEST_ASSERT_EQUALS(static_cast<double>(max_float), numeric_cast<double>(max_float));
+    
+    float lowest_float = std::numeric_limits<float>::lowest();
+    UTEST_ASSERT_EQUALS(static_cast<double>(lowest_float), numeric_cast<double>(lowest_float));
+    
+    // Double to float overflow/underflow tests
+    double large_double = std::numeric_limits<double>::max();
+    if (large_double > static_cast<double>(std::numeric_limits<float>::max())) {
+        UTEST_ASSERT_THROWS([large_double](){ numeric_cast<float>(large_double); });
+    }
+    
+    double small_double = std::numeric_limits<double>::lowest();
+    if (small_double < static_cast<double>(std::numeric_limits<float>::lowest())) {
+        UTEST_ASSERT_THROWS([small_double](){ numeric_cast<float>(small_double); });
+    }
+    
+    // Normal values near the boundaries
+    double near_max_float = static_cast<double>(std::numeric_limits<float>::max()) * 0.9;
+    UTEST_ASSERT_EQUALS(static_cast<float>(near_max_float), numeric_cast<float>(near_max_float));
+    
+    double near_min_float = static_cast<double>(std::numeric_limits<float>::lowest()) * 0.9;
+    UTEST_ASSERT_EQUALS(static_cast<float>(near_min_float), numeric_cast<float>(near_min_float));
+    
+    // Small denormalized values
+    double small_denorm = std::numeric_limits<double>::denorm_min();
+    
+    // Now handle denormalized values
+    // Some implementations may accept denormalized values that are smaller than float's minimum
+    // Others may reject them. Both behaviors are acceptable.
+    try {
+        float result = numeric_cast<float>(small_denorm);
+        // If it succeeds, make sure the result is valid
+        if (small_denorm >= static_cast<double>(std::numeric_limits<float>::denorm_min())) {
+            UTEST_ASSERT_EQUALS(static_cast<float>(small_denorm), result);
+        }
+    } catch (const cast_exception& e) {
+        // This is acceptable if the denorm value is too small for float
+        // No further assertion needed
+    }
+    
+    // Precision loss tests - values that will lose precision when converted to float
+    double precise_double = 1.0 + std::pow(2.0, -24); // Just beyond float precision
+    // This should still succeed because we check range, not precision
+    UTEST_ASSERT_EQUALS(static_cast<float>(precise_double), numeric_cast<float>(precise_double));
+}
+
+// Test double to float conversion specifically
+UTEST_FUNC_DEF(DoubleToFloatConversion) {
+    // Basic conversions that maintain precision
+    double d1 = 42.5;
+    UTEST_ASSERT_EQUALS(42.5f, numeric_cast<float>(d1));
+    
+    double d2 = -123.75;
+    UTEST_ASSERT_EQUALS(-123.75f, numeric_cast<float>(d2));
+    
+    // Range boundary tests
+    // Values just within float range (should work)
+    double near_max_float = static_cast<double>(std::numeric_limits<float>::max()) * 0.99;
+    UTEST_ASSERT_EQUALS(static_cast<float>(near_max_float), numeric_cast<float>(near_max_float));
+    
+    double near_min_float = static_cast<double>(std::numeric_limits<float>::lowest()) * 0.99;
+    UTEST_ASSERT_EQUALS(static_cast<float>(near_min_float), numeric_cast<float>(near_min_float));
+    
+    // Values outside float range (should throw)
+    double beyond_max_float = static_cast<double>(std::numeric_limits<float>::max()) * 1.01;
+    UTEST_ASSERT_THROWS([beyond_max_float](){ numeric_cast<float>(beyond_max_float); });
+    
+    double beyond_min_float = static_cast<double>(std::numeric_limits<float>::lowest()) * 1.01;
+    UTEST_ASSERT_THROWS([beyond_min_float](){ numeric_cast<float>(beyond_min_float); });
+    
+    // Extreme values
+    double max_double = std::numeric_limits<double>::max();
+    UTEST_ASSERT_THROWS([max_double](){ numeric_cast<float>(max_double); });
+    
+    double min_double = std::numeric_limits<double>::lowest();
+    UTEST_ASSERT_THROWS([min_double](){ numeric_cast<float>(min_double); });
+    
+    // Denormalized values
+    // Double denormalized value that is representable in float
+    double d_denorm1 = std::numeric_limits<float>::denorm_min() * 2.0;
+    UTEST_ASSERT_EQUALS(static_cast<float>(d_denorm1), numeric_cast<float>(d_denorm1));
+    
+    // Double denormalized value that is too small for float
+    double d_denorm2 = std::numeric_limits<float>::denorm_min() * 0.5;
+    try {
+        float result = numeric_cast<float>(d_denorm2);
+        // If conversion succeeded, the result should be either 0.0f or denorm_min
+        UTEST_ASSERT_TRUE(result == 0.0f || result == std::numeric_limits<float>::denorm_min());
+    } catch (const cast_exception& e) {
+        // This is also acceptable behavior if implementation rejects too small values
+    }
+    
+    // Zero values
+    double d_zero_pos = 0.0;
+    UTEST_ASSERT_EQUALS(0.0f, numeric_cast<float>(d_zero_pos));
+    UTEST_ASSERT_FALSE(std::signbit(numeric_cast<float>(d_zero_pos)));
+    
+    double d_zero_neg = -0.0;
+    UTEST_ASSERT_EQUALS(0.0f, numeric_cast<float>(d_zero_neg));
+    UTEST_ASSERT_TRUE(std::signbit(numeric_cast<float>(d_zero_neg)));
+    
+    // Precision loss tests
+    // Values that lose precision but are in range
+    double precise_value = 1.0 + std::pow(2.0, -25); // Just beyond float precision
+    UTEST_ASSERT_EQUALS(1.0f, numeric_cast<float>(precise_value)); // Will round to 1.0f
+    
+    double precise_large = 16777216.0 + 1.0; // 2^24 + 1, just beyond float precision
+    UTEST_ASSERT_EQUALS(16777216.0f, numeric_cast<float>(precise_large)); // Will round to 2^24
+    
+    // Subnormal values in double that convert to normal float values
+    if (std::numeric_limits<double>::has_denorm == std::denorm_present) {
+        double small_but_normal_in_float = std::numeric_limits<double>::min() * 2.0;
+        if (small_but_normal_in_float >= std::numeric_limits<float>::min()) {
+            UTEST_ASSERT_EQUALS(static_cast<float>(small_but_normal_in_float), 
+                               numeric_cast<float>(small_but_normal_in_float));
+        }
+    }
 }
 
 // =============================================================================
@@ -383,6 +558,108 @@ UTEST_FUNC_DEF(IntegrationTests) {
                         numeric_cast<signed char>(std::numeric_limits<signed char>::min()));
 }
 
+// Test infinity conversions
+// This function centralizes all infinity-related tests to ensure consistent handling
+UTEST_FUNC_DEF(InfinityConversions) {
+    // Float to double infinity conversions (should always work)
+    float f_inf_pos = std::numeric_limits<float>::infinity();
+    double d_inf_pos = numeric_cast<double>(f_inf_pos);
+    UTEST_ASSERT_TRUE(std::isinf(d_inf_pos));
+    UTEST_ASSERT_TRUE(d_inf_pos > 0);
+    
+    float f_inf_neg = -std::numeric_limits<float>::infinity();
+    double d_inf_neg_result = numeric_cast<double>(f_inf_neg);
+    UTEST_ASSERT_TRUE(std::isinf(d_inf_neg_result));
+    UTEST_ASSERT_TRUE(d_inf_neg_result < 0);
+    
+    // Double to float infinity conversions (should work with proper implementation)
+    double d_inf_pos_src = std::numeric_limits<double>::infinity();
+    float f_inf_pos_result = numeric_cast<float>(d_inf_pos_src);
+    UTEST_ASSERT_TRUE(std::isinf(f_inf_pos_result));
+    UTEST_ASSERT_TRUE(f_inf_pos_result > 0);
+    
+    double d_inf_neg_src = -std::numeric_limits<double>::infinity();
+    float f_inf_neg_result = numeric_cast<float>(d_inf_neg_src);
+    UTEST_ASSERT_TRUE(std::isinf(f_inf_neg_result));
+    UTEST_ASSERT_TRUE(f_inf_neg_result < 0);
+    
+    // Infinity to integral types (should throw)
+    float f_inf = std::numeric_limits<float>::infinity();
+    UTEST_ASSERT_THROWS([f_inf](){ numeric_cast<int>(f_inf); });
+    UTEST_ASSERT_THROWS([f_inf](){ numeric_cast<unsigned int>(f_inf); });
+    UTEST_ASSERT_THROWS([f_inf](){ numeric_cast<char>(f_inf); });
+    
+    double d_inf = std::numeric_limits<double>::infinity();
+    UTEST_ASSERT_THROWS([d_inf](){ numeric_cast<long>(d_inf); });
+    UTEST_ASSERT_THROWS([d_inf](){ numeric_cast<unsigned long>(d_inf); });
+    UTEST_ASSERT_THROWS([d_inf](){ numeric_cast<short>(d_inf); });
+    
+    // Negative infinity to unsigned types (should throw for two reasons)
+    float f_neg_inf_test = -std::numeric_limits<float>::infinity();
+    UTEST_ASSERT_THROWS([f_neg_inf_test](){ numeric_cast<unsigned int>(f_neg_inf_test); });
+    
+    double d_neg_inf_test = -std::numeric_limits<double>::infinity();
+    UTEST_ASSERT_THROWS([d_neg_inf_test](){ numeric_cast<unsigned long>(d_neg_inf_test); });
+}
+
+// Test NaN (Not-a-Number) conversions
+// This function centralizes all NaN-related tests to ensure consistent handling
+UTEST_FUNC_DEF(NaNConversions) {
+    // Basic NaN conversions between floating point types (should work)
+    float f_nan = std::numeric_limits<float>::quiet_NaN();
+    double d_nan_from_float = numeric_cast<double>(f_nan);
+    UTEST_ASSERT_TRUE(std::isnan(d_nan_from_float));
+    
+    double d_nan = std::numeric_limits<double>::quiet_NaN();
+    float f_nan_from_double = numeric_cast<float>(d_nan);
+    UTEST_ASSERT_TRUE(std::isnan(f_nan_from_double));
+    
+    // Signaling NaN conversions
+    float f_snan = std::numeric_limits<float>::signaling_NaN();
+    double d_snan_result = numeric_cast<double>(f_snan);
+    UTEST_ASSERT_TRUE(std::isnan(d_snan_result));
+    
+    double d_snan = std::numeric_limits<double>::signaling_NaN();
+    float f_snan_result = numeric_cast<float>(d_snan);
+    UTEST_ASSERT_TRUE(std::isnan(f_snan_result));
+    
+    // NaN to integral types (should throw)
+    UTEST_ASSERT_THROWS([f_nan](){ numeric_cast<int>(f_nan); });
+    UTEST_ASSERT_THROWS([f_nan](){ numeric_cast<unsigned int>(f_nan); });
+    UTEST_ASSERT_THROWS([f_nan](){ numeric_cast<char>(f_nan); });
+    
+    UTEST_ASSERT_THROWS([d_nan](){ numeric_cast<long>(d_nan); });
+    UTEST_ASSERT_THROWS([d_nan](){ numeric_cast<unsigned long>(d_nan); });
+    UTEST_ASSERT_THROWS([d_nan](){ numeric_cast<short>(d_nan); });
+    
+    // NaN sign handling (NaNs can be positive or negative)
+    float f_neg_nan = -std::numeric_limits<float>::quiet_NaN();
+    double d_neg_nan_result = numeric_cast<double>(f_neg_nan);
+    UTEST_ASSERT_TRUE(std::isnan(d_neg_nan_result));
+    
+    double d_neg_nan = -std::numeric_limits<double>::quiet_NaN();
+    float f_neg_nan_result = numeric_cast<float>(d_neg_nan);
+    UTEST_ASSERT_TRUE(std::isnan(f_neg_nan_result));
+    
+    // Test for NaN payload preservation (if possible)
+    // This is implementation-defined, so we only check that the result is NaN
+    
+    // Convert between different types of NaNs
+    float f_qnan_src = std::numeric_limits<float>::quiet_NaN();
+    double d_from_float_qnan = numeric_cast<double>(f_qnan_src);
+    UTEST_ASSERT_TRUE(std::isnan(d_from_float_qnan));
+    
+    double d_snan_src = std::numeric_limits<double>::signaling_NaN();
+    float f_from_double_snan = numeric_cast<float>(d_snan_src);
+    UTEST_ASSERT_TRUE(std::isnan(f_from_double_snan));
+    
+    // Ensure NaN is still NaN after multiple conversions
+    float f_nan_orig = std::numeric_limits<float>::quiet_NaN();
+    double d_nan_mid = numeric_cast<double>(f_nan_orig);
+    float f_nan_final = numeric_cast<float>(d_nan_mid);
+    UTEST_ASSERT_TRUE(std::isnan(f_nan_final));
+}
+
 int main() {
     UTEST_PROLOG();
     
@@ -398,6 +675,11 @@ int main() {
     
     // Floating point tests
     UTEST_FUNC(FloatToIntConversion);
+    UTEST_FUNC(IntToFloatConversion);
+    UTEST_FUNC(FloatToDoubleConversion);
+    UTEST_FUNC(DoubleToFloatConversion);
+    UTEST_FUNC(InfinityConversions);
+    UTEST_FUNC(NaNConversions);
     
     // char_cast specific tests
     UTEST_FUNC(CharCastBasic);
