@@ -1,10 +1,10 @@
 PROJECT_NAME           = "ncast"
-PROJECT_NUMBER         = "@PROJECT_VERSION@"
+PROJECT_NUMBER         = "1.0.0"
 PROJECT_BRIEF          = "Safe numeric casting header-only C++ library"
 
-OUTPUT_DIRECTORY       = @DOXYGEN_OUTPUT_DIR@
+OUTPUT_DIRECTORY       = .
 USE_MDFILE_AS_MAINPAGE = mainpage.md
-INPUT                  = @DOXYGEN_INPUT_DIR@
+INPUT                  = ../include/ncast ../docs
 FILE_PATTERNS          = *.h *.hpp *.cpp *.md
 RECURSIVE              = YES
 
@@ -40,3 +40,4 @@ QUIET                 = NO
 WARNINGS              = YES
 WARN_IF_UNDOCUMENTED  = YES
 WARN_IF_DOC_ERROR     = YES
+EXCLUDE                = ../include/utest
