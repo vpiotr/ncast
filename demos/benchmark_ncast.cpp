@@ -43,7 +43,7 @@ public:
     double stop() {
         auto end_time = high_resolution_clock::now();
         auto duration = duration_cast<microseconds>(end_time - start_time);
-        return duration.count() / 1000.0; // Return milliseconds
+        return static_cast<double>(duration.count()) / 1000.0; // Return milliseconds
     }
 };
 
@@ -61,7 +61,7 @@ double heavy_computation_static_cast(const std::vector<long>& data) {
         
         // Some mathematical operations
         double temp = std::sin(short_val * 0.001) + std::cos(unsigned_val * 0.0001);
-        result += temp * (i % 1000);
+        result += temp * static_cast<double>(i % 1000);
     }
     
     return result;
@@ -90,10 +90,10 @@ double heavy_computation_ncast_with_validation(const std::vector<long>& data) {
             
             // Some mathematical operations
             double temp = std::sin(short_val * 0.001) + std::cos(unsigned_val * 0.0001);
-            result += temp * (i % 1000);
+            result += temp * static_cast<double>(i % 1000);
         } catch (const cast_exception&) {
             // Handle invalid casts (shouldn't happen with our test data)
-            result += 0.1 * (i % 1000);
+            result += 0.1 * static_cast<double>(i % 1000);
         }
     }
     
@@ -123,10 +123,10 @@ double heavy_computation_macro_with_validation(const std::vector<long>& data) {
             
             // Some mathematical operations
             double temp = std::sin(short_val * 0.001) + std::cos(unsigned_val * 0.0001);
-            result += temp * (i % 1000);
+            result += temp * static_cast<double>(i % 1000);
         } catch (const cast_exception&) {
             // Handle invalid casts (shouldn't happen with our test data)
-            result += 0.1 * (i % 1000);
+            result += 0.1 * static_cast<double>(i % 1000);
         }
     }
     
@@ -241,8 +241,8 @@ void draw_performance_chart(const std::vector<std::pair<std::string, double>>& r
         }
         
         // Center first line in 21-character field
-        int padding1 = (21 - line1.length()) / 2;
-        std::cout << std::setw(padding1) << "" << line1 << std::setw(21 - padding1 - line1.length()) << "";
+        int padding1 = static_cast<int>(21 - line1.length()) / 2;
+        std::cout << std::setw(padding1) << "" << line1 << std::setw(static_cast<int>(21 - static_cast<size_t>(padding1) - line1.length())) << "";
     }
     std::cout << std::endl;
     
@@ -267,8 +267,8 @@ void draw_performance_chart(const std::vector<std::pair<std::string, double>>& r
         }
         
         // Center second line in 21-character field
-        int padding2 = (21 - line2.length()) / 2;
-        std::cout << std::setw(padding2) << "" << line2 << std::setw(21 - padding2 - line2.length()) << "";
+        int padding2 = static_cast<int>(21 - line2.length()) / 2;
+        std::cout << std::setw(padding2) << "" << line2 << std::setw(static_cast<int>(21 - static_cast<size_t>(padding2) - line2.length())) << "";
     }
     std::cout << std::endl;
 }
@@ -287,7 +287,7 @@ double warmup_static_cast(const std::vector<long>& data) {
         
         // Some mathematical operations
         double temp = std::sin(short_val * 0.001) + std::cos(unsigned_val * 0.0001);
-        result += temp * (i % 1000);
+        result += temp * static_cast<double>(i % 1000);
     }
     
     return result;
@@ -312,10 +312,10 @@ double warmup_ncast_with_validation(const std::vector<long>& data) {
             
             // Some mathematical operations
             double temp = std::sin(short_val * 0.001) + std::cos(unsigned_val * 0.0001);
-            result += temp * (i % 1000);
+            result += temp * static_cast<double>(i % 1000);
         } catch (const cast_exception&) {
             // Handle invalid casts (shouldn't happen with our test data)
-            result += 0.1 * (i % 1000);
+            result += 0.1 * static_cast<double>(i % 1000);
         }
     }
     
@@ -341,10 +341,10 @@ double warmup_macro_with_validation(const std::vector<long>& data) {
             
             // Some mathematical operations
             double temp = std::sin(short_val * 0.001) + std::cos(unsigned_val * 0.0001);
-            result += temp * (i % 1000);
+            result += temp * static_cast<double>(i % 1000);
         } catch (const cast_exception&) {
             // Handle invalid casts (shouldn't happen with our test data)
-            result += 0.1 * (i % 1000);
+            result += 0.1 * static_cast<double>(i % 1000);
         }
     }
     

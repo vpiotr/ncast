@@ -140,6 +140,13 @@ namespace detail {
         static_assert(is_numeric_or_char<ToType>::value, "ToType must be a numeric type or char");
         static_assert(is_numeric_or_char<FromType>::value, "FromType must be a numeric type or char");
         
+#if !NCAST_ENABLE_VALIDATION
+        // Suppress unused parameter warnings when validation is disabled
+        (void)file;
+        (void)line;
+        (void)function;
+#endif
+        
 #if NCAST_ENABLE_VALIDATION
         // Check for signed to unsigned conversion with negative value
         if (std::is_signed<FromType>::value && std::is_unsigned<ToType>::value) {

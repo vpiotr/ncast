@@ -31,7 +31,7 @@ double heavy_computation_ncast_no_validation_real(const std::vector<long>& data,
         
         // Some mathematical operations (must match the other benchmark functions)
         double temp = std::sin(short_val * 0.001) + std::cos(unsigned_val * 0.0001);
-        result += temp * (i % 1000);
+        result += temp * static_cast<double>(i % 1000);
     }
     
     return result;
@@ -56,7 +56,7 @@ double heavy_computation_macro_no_validation_real(const std::vector<long>& data,
         
         // Some mathematical operations (must match the other benchmark functions)
         double temp = std::sin(short_val * 0.001) + std::cos(unsigned_val * 0.0001);
-        result += temp * (i % 1000);
+        result += temp * static_cast<double>(i % 1000);
     }
     
     return result;

@@ -31,6 +31,7 @@ void demo_safe_failures() {
     try {
         int negative = -42;
         unsigned int result = number_cast<unsigned int>(negative);
+        (void)result; // Suppress unused variable warning
         std::cout << "ERROR: This should not execute!" << std::endl;
     } catch (const cast_exception& e) {
         std::cout << "Caught expected exception: " << e.what() << std::endl;
@@ -40,6 +41,7 @@ void demo_safe_failures() {
     try {
         int big_value = 300;
         char result = number_cast<char>(big_value);
+        (void)result; // Suppress unused variable warning
         std::cout << "ERROR: This should not execute!" << std::endl;
     } catch (const cast_exception& e) {
         std::cout << "Caught expected exception: " << e.what() << std::endl;
@@ -81,6 +83,7 @@ void demo_limits() {
     try {
         int beyond_limit = static_cast<int>(std::numeric_limits<char>::max()) + 1;
         char result = number_cast<char>(beyond_limit);
+        (void)result; // Suppress unused variable warning
         std::cout << "ERROR: This should not execute!" << std::endl;
     } catch (const cast_exception& e) {
         std::cout << "Caught expected exception for beyond limit: " << e.what() << std::endl;
@@ -95,6 +98,7 @@ void demo_macro_location_info() {
     try {
         int negative = -123;
         unsigned int result = NUMBER_CAST(unsigned int, negative);  // This line will be in error
+        (void)result; // Suppress unused variable warning
         std::cout << "ERROR: This should not execute!" << std::endl;
     } catch (const cast_exception& e) {
         std::cout << "Exception with location info:" << std::endl;
