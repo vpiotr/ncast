@@ -212,7 +212,7 @@ ToType char_cast(FromType value);
 
 **Features:**
 - Works only with `char`, `signed char`, `unsigned char`
-- Always safe - no runtime validation needed (reinterpret cast)
+- Always safe - no runtime validation needed (performs a simple value conversion)
 - Compiler error if used with non-char types
 - Zero overhead - pure compile-time safety
 
@@ -240,8 +240,8 @@ public:
 #include <ncast/ncast.h>
 
 // When disabled, all casts behave like static_cast but with type safety
-// Validation overhead: ~0.3-1.2% (see benchmarks)
-// No-validation overhead: 0% (identical to static_cast)
+// Validation overhead: ~5.6-9.8% (see benchmarks)
+// No-validation overhead: ~1-1.3% (nearly identical to static_cast)
 ```
 
 **Validation modes:**
@@ -386,20 +386,20 @@ The library includes comprehensive performance benchmarks comparing:
 **Sample benchmark results:**
 ```
 === Performance Summary ===
-1. static_cast:                   1743.60 ms
-2. numeric_cast (no validation):   1730.13 ms (1.0x - essentially identical)
-3. numeric_cast (validation):      1819.8 ms (1.04x - 4.4% overhead)
-4. NUMERIC_CAST (no validation):   1730.6 ms (1.0x - essentially identical)  
-5. NUMERIC_CAST (validation):      1823.7 ms (1.05x - 4.6% overhead)
+1. static_cast:                   1713.46 ms
+2. numeric_cast (no validation):  1735.91 ms (1.0x)
+3. numeric_cast (validation):     1810.00 ms (1.1x)
+4. NUMERIC_CAST (no validation):  1717.93 ms (1.0x)
+5. NUMERIC_CAST (validation):     1880.78 ms (1.1x)
 
-Function validation overhead: 4.4%
-Macro validation overhead: 4.6%
+Function validation overhead: 5.6%
+Macro validation overhead: 9.8%
 ```
 
 **Key insights:**
-- No-validation versions perform nearly identically to `static_cast`
-- Validation overhead is minimal (typically 0.3-1.2% for computational workloads)
-- Macro versions provide location info with negligible additional cost
+- No-validation versions perform very close to `static_cast`
+- Validation overhead is moderate (5.6% for functions, 9.8% for macros)
+- Macro versions provide location info with minimal additional cost
 - Perfect for performance-critical code when validation is disabled
 
 **Run benchmarks:**
@@ -426,8 +426,8 @@ Generate comprehensive API documentation with Doxygen:
 
 ## Performance
 
-- **With validation**: Small runtime overhead for range checking (~0.3-1.2%)
-- **Without validation**: Zero overhead (equivalent to `static_cast`)
+- **With validation**: Runtime overhead for range checking (5.6-9.8%)
+- **Without validation**: Minimal overhead (nearly identical to `static_cast`)
 - **Header-only**: No linking required, enables maximum compiler optimizations
 - **Benchmark-verified**: Comprehensive performance testing with real workloads
 
