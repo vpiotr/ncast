@@ -1,0 +1,133 @@
+cmake_minimum_required(VERSION 3.10)
+project(ncast VERSION 1.0.0 LANGUAGES CXX)
+
+# Set C++ standard
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# Set build type if not specified
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Release)
+endif()
+
+# Compiler flags
+set(CMAKE_CXX_FLAGS "-Wall -Wextra")
+set(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -DDEBUG")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG")
+
+# Include directories
+include_directories(${CMAKE_SOURCE_DIR}/include)
+include_directories(${CMAKE_SOURCE_DIR}/include/utest)
+
+# Create interface library for header-only library
+add_library(ncast INTERFACE)
+target_include_directories(ncast INTERFACE 
+    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+)
+
+# Option to enable/disable validation
+option(NCAST_DISABLE_VALIDATION "Disable ncast validation for performance" OFF)
+if(NCAST_DISABLE_VALIDATION)
+    target_compile_definitions(ncast INTERFACE NCAST_DISABLE_VALIDATION)
+endif()
+
+# Build tests
+option(BUILD_TESTS "Build tests" ON)
+if(BUILD_TESTS)
+    enable_testing()
+    
+    # Test executable
+    add_executable(test_ncast tests/test_ncast.cpp)
+    target_link_libraries(test_ncast ncast)
+    
+    # Add test to CTest
+    add_test(NAME ncast_tests COMMAND test_ncast)
+    
+    # Set test properties
+    set_tests_properties(ncast_tests PROPERTIES
+        PASS_REGULAR_EXPRESSION "SUCCESS"
+    )
+endif()
+
+# Build demos
+option(BUILD_DEMOS "Build demonstration programs" ON)
+if(BUILD_DEMOS)
+    # Demo executable
+    add_executable(demo_ncast demos/demo_ncast.cpp)
+    target_link_libraries(demo_ncast ncast)
+endif()
+
+# Documentation with Doxygen
+find_package(Doxygen)
+if(DOXYGEN_FOUND)
+    option(BUILD_DOCS "Build documentation" ON)
+    if(BUILD_DOCS)
+        # Configure Doxygen
+        set(DOXYGEN_INPUT_DIR ${CMAKE_SOURCE_DIR}/include)
+        set(DOXYGEN_OUTPUT_DIR ${CMAKE_SOURCE_DIR}/docs)
+        set(DOXYGEN_INDEX_FILE ${DOXYGEN_OUTPUT_DIR}/html/index.html)
+        
+        # Create Doxyfile
+        configure_file(${CMAKE_SOURCE_DIR}/docs/Doxyfile.in 
+                       ${CMAKE_BINARY_DIR}/Doxyfile @ONLY)
+        
+        # Add documentation target
+        add_custom_target(docs
+            COMMAND ${DOXYGEN_EXECUTABLE} ${CMAKE_BINARY_DIR}/Doxyfile
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+            COMMENT "Generating API documentation with Doxygen"
+            VERBATIM
+        )
+    endif()
+endif()
+
+# Installation
+include(GNUInstallDirs)
+
+# Install the header
+install(FILES include/ncast/ncast.h
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/ncast)
+
+# Install the target
+install(TARGETS ncast
+        EXPORT ncastTargets
+        INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+
+# Create and install the config file
+include(CMakePackageConfigHelpers)
+
+configure_package_config_file(
+    ${CMAKE_SOURCE_DIR}/cmake/ncastConfig.cmake.in
+    ${CMAKE_BINARY_DIR}/ncastConfig.cmake
+    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/ncast
+)
+
+write_basic_package_version_file(
+    ${CMAKE_BINARY_DIR}/ncastConfigVersion.cmake
+    VERSION ${PROJECT_VERSION}
+    COMPATIBILITY AnyNewerVersion
+)
+
+install(FILES
+    ${CMAKE_BINARY_DIR}/ncastConfig.cmake
+    ${CMAKE_BINARY_DIR}/ncastConfigVersion.cmake
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/ncast
+)
+
+install(EXPORT ncastTargets
+        FILE ncastTargets.cmake
+        NAMESPACE ncast::
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/ncast
+)
+
+# CPack configuration
+set(CPACK_PACKAGE_NAME "ncast")
+set(CPACK_PACKAGE_VERSION ${PROJECT_VERSION})
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Safe numeric casting header-only C++ library")
+set(CPACK_PACKAGE_VENDOR "ncast")
+set(CPACK_PACKAGE_CONTACT "ncast@example.com")
+set(CPACK_RESOURCE_FILE_LICENSE ${CMAKE_SOURCE_DIR}/LICENSE)
+set(CPACK_RESOURCE_FILE_README ${CMAKE_SOURCE_DIR}/README.md)
+
+include(CPack)
