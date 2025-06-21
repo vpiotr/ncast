@@ -1,6 +1,6 @@
 # ncast - Safe Numeric Casting Library
 
-[![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](https://github.com/vpiotr/ncast)
+[![Build Status](https://github.com/vpiotr/ncast/actions/workflows/ci.yml/badge.svg)](https://github.com/vpiotr/ncast/actions/workflows/ci.yml)
 [![C++ Standard](https://img.shields.io/badge/C%2B%2B-11%2B-blue)](https://en.cppreference.com/w/cpp/11)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![Header Only](https://img.shields.io/badge/header--only-yes-orange)](include/ncast/ncast.h)
