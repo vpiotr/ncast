@@ -2,7 +2,7 @@
  * @file benchmark_ncast_no_validation.cpp
  * @brief Benchmark module compiled with validation disabled
  * 
- * This module is compiled with NCAST_DISABLE_VALIDATION defined via CMake,
+ * This module is compiled with NCAST_DISABLE_RUNTIME_VALIDATION defined via CMake,
  * allowing us to test the true performance of numeric_cast without validation.
  */
 
@@ -16,7 +16,7 @@ using namespace ncast;
  * @brief Heavy computation function using numeric_cast with validation disabled
  * 
  * This function uses the real numeric_cast function, but with validation
- * disabled at compile time via NCAST_DISABLE_VALIDATION.
+ * disabled at compile time via NCAST_DISABLE_RUNTIME_VALIDATION.
  */
 double heavy_computation_ncast_no_validation_real(const std::vector<long>& data, size_t iterations) {
     double result = 0.0;
@@ -41,7 +41,7 @@ double heavy_computation_ncast_no_validation_real(const std::vector<long>& data,
  * @brief Heavy computation function using NUMERIC_CAST macro with validation disabled
  * 
  * This function uses the real NUMERIC_CAST macro, but with validation
- * disabled at compile time via NCAST_DISABLE_VALIDATION.
+ * disabled at compile time via NCAST_DISABLE_RUNTIME_VALIDATION.
  */
 double heavy_computation_macro_no_validation_real(const std::vector<long>& data, size_t iterations) {
     double result = 0.0;

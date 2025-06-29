@@ -6,7 +6,7 @@
 [![Header Only](https://img.shields.io/badge/header--only-yes-orange)](include/ncast/ncast.h)
 [![Platform](https://img.shields.io/badge/platform-cross--platform-lightgrey)](CMakeLists.txt)
 
-A header-only C++ micro-library for safe numeric casting with runtime validation and comprehensive error reporting.
+A header-only C++ micro-library for safe numeric casting with runtime validation, optional compile-time validation (C++14+), and comprehensive error reporting.
 
 ## Quick Overview
 
@@ -17,14 +17,17 @@ A header-only C++ micro-library for safe numeric casting with runtime validation
 - Special floating-point values (NaN, infinity) being improperly converted
 - Unexpected sign conversions
 
-This library provides `numeric_cast<T>()` and `NUMERIC_CAST(T, val)` which perform comprehensive runtime validation before converting values, throwing informative exceptions when conversions would be unsafe. With validation disabled, it compiles down to a simple `static_cast` with zero overhead.
+This library provides `numeric_cast<T>()` and `NUMERIC_CAST(T, val)` which perform comprehensive validation before converting values, throwing informative exceptions when conversions would be unsafe. In C++14+, validation can occur at compile time for constant expressions, while maintaining full C++11 compatibility with runtime validation. With validation disabled, it compiles down to a simple `static_cast` with zero overhead.
 
 ```cpp
 // Instead of error-prone static_cast:
 unsigned int result = static_cast<unsigned int>(-1);  // Silently becomes a large value!
 
 // Use safe numeric_cast:
-unsigned int result = numeric_cast<unsigned int>(value);  // Throws if value is negative
+unsigned int result = numeric_cast<unsigned int>(value);  // Runtime validation (all standards)
+
+// C++14+ compile-time validation for constants:
+constexpr unsigned int compile_time_result = numeric_cast<unsigned int>(42);  // Compile-time validation
 ```
 
 ## Table of Contents
@@ -47,6 +50,8 @@ unsigned int result = numeric_cast<unsigned int>(value);  // Throws if value is 
 ## Features
 
 - **Safe casting**: Validates value ranges before casting to prevent dangerous conversions
+- **C++11 compatible**: Full functionality available from C++11 onwards
+- **Optional compile-time validation**: C++14+ enables compile-time validation for constant expressions
 - **Header-only**: Just include `ncast.h` and start using - no linking required
 - **Comprehensive support**: Works with all numeric types plus char types
 - **Enhanced precision**: Uses centralized widening types for maximum accuracy in range validation
@@ -98,17 +103,24 @@ make install
 #include <ncast/ncast.h>
 using namespace ncast;
 
-// Safe casting - throws cast_exception if value doesn't fit
+// Safe casting - throws cast_exception if value doesn't fit (all C++ standards)
 int value = 42;
-unsigned int result = numeric_cast<unsigned int>(value);  // OK
+unsigned int result = numeric_cast<unsigned int>(value);  // Runtime validation
 
 // This would throw because -1 cannot be safely cast to unsigned
 int negative = -1;
 unsigned int bad_result = numeric_cast<unsigned int>(negative);  // Throws!
 
+// C++14+ compile-time validation for constant expressions
+constexpr int compile_time_value = 42;
+constexpr auto compile_time_result = numeric_cast<unsigned int>(compile_time_value);  // Compile-time validation
+
 // Char-specific casting (always safe between char types)
 signed char sc = 'A';
 unsigned char uc = char_cast<unsigned char>(sc);  // Always safe
+
+// C++14+ compile-time char casting
+constexpr auto compile_time_char = char_cast<unsigned char>('B');  // Compile-time
 
 // Macro versions provide better error location information
 auto result2 = NUMERIC_CAST(unsigned int, value);
@@ -158,8 +170,8 @@ cmake .. -DBUILD_DEMOS=ON
 # Build documentation (default: ON if Doxygen found)
 cmake .. -DBUILD_DOCS=ON
 
-# Disable validation globally (default: OFF)
-cmake .. -DNCAST_DISABLE_VALIDATION=ON
+# Disable runtime validation globally (default: OFF)
+cmake .. -DNCAST_DISABLE_RUNTIME_VALIDATION=ON
 
 # Release build for benchmarks
 cmake .. -DCMAKE_BUILD_TYPE=Release
@@ -169,15 +181,20 @@ cmake .. -DCMAKE_BUILD_TYPE=Release
 
 ### numeric_cast
 
-Safe casting between any numeric types and char:
+Safe casting between any numeric types and char with optional compile-time validation:
 
 ```cpp
 template<typename ToType, typename FromType>
-ToType numeric_cast(FromType value);
+ToType numeric_cast(FromType value);                    // C++11: runtime validation
+                                                        // C++14+: compile-time validation for constants
 
 // Macro version with location info
 #define NUMERIC_CAST(ToType, value)
 ```
+
+**Validation modes:**
+- **C++11**: Runtime validation only - fully functional base library
+- **C++14+**: Optional compile-time validation for constant expressions, with automatic fallback to runtime validation for non-constants
 
 **Supported types:**
 - All integral types: `bool`, `char`, `signed char`, `unsigned char`, `short`, `unsigned short`, `int`, `unsigned int`, `long`, `unsigned long`, `long long`, `unsigned long long`
@@ -195,6 +212,12 @@ ToType numeric_cast(FromType value);
 - Throws `cast_exception` on validation failure with detailed context
 - Compile-time type safety enforced via `static_assert`
 
+**Compile-time usage (C++14+):**
+```cpp
+constexpr int value = 42;
+constexpr auto result = numeric_cast<unsigned int>(value);  // Validated at compile time
+```
+
 **Exception details:**
 ```cpp
 // Exception provides rich context information
@@ -208,11 +231,12 @@ try {
 
 ### char_cast
 
-Safe casting between char types only:
+Safe casting between char types only with optional compile-time evaluation:
 
 ```cpp
 template<typename ToType, typename FromType>
-ToType char_cast(FromType value);
+ToType char_cast(FromType value);                       // C++11: runtime execution
+                                                        // C++14+: compile-time evaluation
 
 // Macro version with location info  
 #define CHAR_CAST(ToType, value)
@@ -221,8 +245,14 @@ ToType char_cast(FromType value);
 **Features:**
 - Works only with `char`, `signed char`, `unsigned char`
 - Always safe - no runtime validation needed (performs a simple value conversion)
+- **C++14+**: Can be evaluated at compile time for constant expressions
 - Compiler error if used with non-char types
 - Zero overhead - pure compile-time safety
+
+**Compile-time usage (C++14+):**
+```cpp
+constexpr auto result = char_cast<unsigned char>('A');  // Evaluated at compile time
+```
 
 **Why char_cast?**
 Character types have special conversion semantics in C++. This function provides a safe, explicit way to convert between character types without the overhead of runtime validation, since all char-to-char conversions are well-defined.
@@ -240,21 +270,81 @@ public:
 };
 ```
 
+### C++ Standard Compatibility
+
+**ncast** is designed to provide maximum functionality across all C++ standards while enabling enhanced features for newer standards:
+
+**C++11 (Base functionality):**
+- Full runtime validation for all numeric conversions
+- Complete exception handling with location information
+- All core features: `numeric_cast`, `char_cast`, macros
+- Zero overhead when validation is disabled
+
+**C++14+ (Enhanced functionality):**
+- Optional compile-time validation for constant expressions
+- `constexpr` evaluation of casts when possible
+- Automatic fallback to runtime validation for non-constants
+- Maintains full compatibility with C++11 behavior
+
+**Feature detection:**
+The library automatically detects your compiler's C++ standard support and enables appropriate features:
+
+```cpp
+#include <ncast/ncast.h>
+using namespace ncast;
+
+// These work in ALL C++ standards (C++11+):
+int runtime_value = get_value();
+auto result1 = numeric_cast<unsigned int>(runtime_value);  // Runtime validation
+
+// These work in C++14+ ONLY:
+constexpr int compile_time_value = 42;
+constexpr auto result2 = numeric_cast<unsigned int>(compile_time_value);  // Compile-time validation
+```
+
+**Migration notes:**
+- Existing C++11 code continues to work unchanged
+- Enhanced features are automatically available when upgrading to C++14+
+- No breaking changes between standards
+
 ### Configuration
 
 ```cpp
-// Disable validation globally for maximum performance
-#define NCAST_DISABLE_VALIDATION
+// Disable runtime validation globally for maximum performance
+#define NCAST_DISABLE_RUNTIME_VALIDATION
 #include <ncast/ncast.h>
 
-// When disabled, all casts behave like static_cast but with type safety
-// Validation overhead: ~6.0% (see benchmarks)
-// No-validation overhead: ~1-1.3% (nearly identical to static_cast)
+// Disable compile-time validation (C++14+) while keeping runtime validation
+#define NCAST_DISABLE_COMPILE_TIME_VALIDATION
+#include <ncast/ncast.h>
+
+// Disable both runtime and compile-time validation for ultimate performance
+#define NCAST_DISABLE_RUNTIME_VALIDATION
+#define NCAST_DISABLE_COMPILE_TIME_VALIDATION
+#include <ncast/ncast.h>
+
+// When runtime validation is disabled, all casts behave like static_cast but with type safety
+// Runtime validation overhead: ~6.0% (see benchmarks)
+// No-runtime-validation overhead: ~1-1.3% (nearly identical to static_cast)
 ```
 
+**Control Macros:**
+
+- **`NCAST_DISABLE_RUNTIME_VALIDATION`**: Disables runtime validation checks
+  - Use for maximum performance when you're confident about the safety of your casts
+  - Functions like `static_cast` but with compile-time type safety
+  - Affects both C++11 and C++14+ modes
+
+- **`NCAST_DISABLE_COMPILE_TIME_VALIDATION`**: Disables compile-time validation (C++14+ only)
+  - Forces the use of runtime validation even for constant expressions
+  - Useful for debugging or when you want consistent runtime behavior
+  - Has no effect in C++11 mode (already runtime-only)
+
 **Validation modes:**
-- **With validation** (default): Runtime checks with exceptions
-- **Without validation**: Compile-time type safety only, zero overhead
+- **With runtime validation** (default): Runtime checks with exceptions
+- **Without runtime validation**: Compile-time type safety only, zero overhead
+- **With compile-time validation** (C++14+, default): Compile-time validation for constant expressions
+- **Without compile-time validation**: Forces runtime validation even for constants
 
 ## Examples
 
@@ -287,6 +377,76 @@ signed char sc2 = char_cast<signed char>(c);        // OK
 
 // Compile-time error:
 // int bad = char_cast<int>(c);                      // Won't compile
+```
+
+### Compile-time Validation (C++14+)
+
+```cpp
+#include <ncast/ncast.h>
+using namespace ncast;
+
+// Compile-time numeric casting
+constexpr int value = 42;
+constexpr unsigned int result = numeric_cast<unsigned int>(value);  // Validated at compile time
+
+// Compile-time char casting  
+constexpr char c = 'A';
+constexpr unsigned char uc = char_cast<unsigned char>(c);          // Evaluated at compile time
+
+// Mixed compile-time and runtime
+constexpr int compile_time_safe = numeric_cast<int>(100U);         // Compile-time
+int runtime_value = get_input();
+int runtime_safe = numeric_cast<int>(runtime_value);               // Runtime validation
+
+// This will cause a compile error (intentional):
+// constexpr auto bad = numeric_cast<unsigned int>(-1);            // Compile-time validation fails
+
+// Feature detection
+#if NCAST_HAS_CONSTEXPR_VALIDATION
+    // C++14+ features available
+    constexpr auto enhanced_result = numeric_cast<int>(42U);
+#else
+    // C++11 mode - runtime validation only
+    auto basic_result = numeric_cast<int>(42U);
+#endif
+```
+
+### Validation Control Examples
+
+```cpp
+// Example 1: Maximum performance - disable runtime validation
+#define NCAST_DISABLE_RUNTIME_VALIDATION
+#include <ncast/ncast.h>
+using namespace ncast;
+
+int unsafe_but_fast() {
+    int negative = -1;
+    // This will NOT throw even though it's unsafe (becomes large positive number)
+    unsigned int result = numeric_cast<unsigned int>(negative);  // No runtime check
+    return result;  // Returns 4294967295 (2^32 - 1)
+}
+
+// Example 2: Force runtime validation even for constants (C++14+)
+#define NCAST_DISABLE_COMPILE_TIME_VALIDATION  
+#include <ncast/ncast.h>
+using namespace ncast;
+
+void always_runtime_validation() {
+    constexpr int value = 42;
+    // Even though value is constexpr, this will use runtime validation
+    auto result = numeric_cast<unsigned int>(value);  // Runtime validation
+}
+
+// Example 3: Ultimate performance - disable both validations
+#define NCAST_DISABLE_RUNTIME_VALIDATION
+#define NCAST_DISABLE_COMPILE_TIME_VALIDATION
+#include <ncast/ncast.h>
+using namespace ncast;
+
+void maximum_performance() {
+    // Behaves exactly like static_cast but with type safety
+    auto result = numeric_cast<unsigned int>(-1);  // No validation at all
+}
 ```
 
 ### Exception Handling
@@ -467,7 +627,7 @@ The library includes comprehensive performance benchmarks comparing:
 - `NUMERIC_CAST` macro **with** validation (runtime checks + location info)
 
 **Advanced benchmark features:**
-- Multi-module approach: No-validation tests compiled separately with `NCAST_DISABLE_VALIDATION`
+- Multi-module approach: No-validation tests compiled separately with `NCAST_DISABLE_RUNTIME_VALIDATION`
 - Statistical analysis: Multiple runs with average, median, standard deviation, min, max
 - Individual warm-up phases for each function to ensure fair comparison
 - Heavy computational workload to measure real-world performance impact
@@ -525,11 +685,15 @@ Generate comprehensive API documentation with Doxygen:
 
 **Performance modes:**
 ```cpp
-// High safety (default) - runtime validation enabled
+// High safety (default) - runtime validation enabled, compile-time validation for constants (C++14+)
 #include <ncast/ncast.h>
 
-// Maximum performance - validation disabled, zero overhead
-#define NCAST_DISABLE_VALIDATION
+// Maximum performance - runtime validation disabled, zero overhead
+#define NCAST_DISABLE_RUNTIME_VALIDATION
+#include <ncast/ncast.h>
+
+// Force runtime validation even for constants (C++14+)
+#define NCAST_DISABLE_COMPILE_TIME_VALIDATION
 #include <ncast/ncast.h>
 ```
 

@@ -47,9 +47,9 @@ target_include_directories(ncast INTERFACE
 )
 
 # Option to enable/disable validation
-option(NCAST_DISABLE_VALIDATION "Disable ncast validation for performance" OFF)
-if(NCAST_DISABLE_VALIDATION)
-    target_compile_definitions(ncast INTERFACE NCAST_DISABLE_VALIDATION)
+option(NCAST_DISABLE_RUNTIME_VALIDATION "Disable ncast runtime validation for performance" OFF)
+if(NCAST_DISABLE_RUNTIME_VALIDATION)
+    target_compile_definitions(ncast INTERFACE NCAST_DISABLE_RUNTIME_VALIDATION)
 endif()
 
 # Build tests
@@ -89,10 +89,10 @@ if(BUILD_DEMOS)
     add_executable(demo_ncast demos/demo_ncast.cpp)
     target_link_libraries(demo_ncast ncast)
     
-    # Benchmark no-validation module (compiled with NCAST_DISABLE_VALIDATION)
+    # Benchmark no-validation module (compiled with NCAST_DISABLE_RUNTIME_VALIDATION)
     add_library(benchmark_ncast_no_validation demos/benchmark_ncast_no_validation.cpp)
     target_include_directories(benchmark_ncast_no_validation PRIVATE ${CMAKE_SOURCE_DIR}/include)
-    target_compile_definitions(benchmark_ncast_no_validation PRIVATE NCAST_DISABLE_VALIDATION)
+    target_compile_definitions(benchmark_ncast_no_validation PRIVATE NCAST_DISABLE_RUNTIME_VALIDATION)
     
     # Benchmark executable (links with the no-validation module)
     add_executable(benchmark_ncast demos/benchmark_ncast.cpp)

@@ -13,17 +13,24 @@
  * Features:
  * - numeric_cast: Safe casting between all numeric types and char
  * - char_cast: Safe casting between signed/unsigned chars only
+ * - Runtime validation with comprehensive error reporting
+ * - Compile-time validation for constant expressions (C++14+, optional)
  * - Macro versions with accurate location information
- * - Optional validation (can be disabled with NCAST_DISABLE_VALIDATION)
+ * - Optional validation (can be disabled with NCAST_DISABLE_RUNTIME_VALIDATION)
  * - High-precision validation using long double intermediate calculations
  * - Enhanced support for long double with proper range checking
+ * - C++11 compatible base functionality, enhanced features for newer standards
  * 
  * @code
  * #include <ncast/ncast.h>
  * 
- * // Safe numeric casting
+ * // Safe numeric casting - works in all C++ standards
  * int value = 42;
- * unsigned int result = numeric_cast<unsigned int>(value);
+ * unsigned int result = numeric_cast<unsigned int>(value); // Runtime validation
+ * 
+ * // C++14+ compile-time validation for constants (when supported)
+ * constexpr int compile_time_value = 42;
+ * constexpr unsigned int result2 = numeric_cast<unsigned int>(compile_time_value); // C++14+ only
  * 
  * // Safe char casting
  * signed char sc = 'A';
@@ -41,6 +48,45 @@
 #include <type_traits>
 #include <limits>
 #include <cmath> // For std::isnan and std::isinf
+
+// C++ standard detection and feature flags
+#ifndef __cplusplus
+#error "ncast requires a C++ compiler"
+#endif
+
+// Detect C++ standard version
+#if __cplusplus >= 201402L
+#define NCAST_HAS_CPP14 1
+#else
+#define NCAST_HAS_CPP14 0
+#endif
+
+#if __cplusplus >= 201703L
+#define NCAST_HAS_CPP17 1
+#else
+#define NCAST_HAS_CPP17 0
+#endif
+
+#if __cplusplus >= 202002L
+#define NCAST_HAS_CPP20 1
+#else
+#define NCAST_HAS_CPP20 0
+#endif
+
+// Feature detection
+#if NCAST_HAS_CPP14 && !defined(NCAST_DISABLE_COMPILE_TIME_VALIDATION)
+#define NCAST_CONSTEXPR_14 constexpr
+#define NCAST_HAS_CONSTEXPR_VALIDATION 1
+#else
+#define NCAST_CONSTEXPR_14 
+#define NCAST_HAS_CONSTEXPR_VALIDATION 0
+#endif
+
+#if NCAST_HAS_CPP20 && defined(__cpp_lib_is_constant_evaluated)
+#define NCAST_HAS_IS_CONSTANT_EVALUATED 1
+#else
+#define NCAST_HAS_IS_CONSTANT_EVALUATED 0
+#endif
 
 // Cross-platform function name macro compatibility
 #ifndef __PRETTY_FUNCTION__
@@ -115,11 +161,11 @@ public:
     }
 };
 
-// Macro to enable/disable validation
-#ifndef NCAST_DISABLE_VALIDATION
-#define NCAST_ENABLE_VALIDATION 1
+// Validation control macros
+#ifndef NCAST_DISABLE_RUNTIME_VALIDATION
+#define NCAST_ENABLE_RUNTIME_VALIDATION 1
 #else
-#define NCAST_ENABLE_VALIDATION 0
+#define NCAST_ENABLE_RUNTIME_VALIDATION 0
 #endif
 
 namespace detail {
@@ -131,6 +177,72 @@ namespace detail {
      */
     using widening_float_type = long double;    ///< Type for floating-point widening comparisons
     using widening_int_type = long long;        ///< Type for integer widening comparisons
+
+#if NCAST_HAS_CONSTEXPR_VALIDATION
+    /**
+     * @brief Compile-time range validation utilities (C++14+ only)
+     */
+    namespace constexpr_validation {
+        /**
+         * @brief Check if a value is within target type range at compile time
+         */
+        template<typename ToType, typename FromType>
+        NCAST_CONSTEXPR_14 bool is_in_range(FromType value) {
+            return std::is_floating_point<FromType>::value
+                ? (std::is_floating_point<ToType>::value
+                    ? (value <= static_cast<FromType>(std::numeric_limits<ToType>::max()) &&
+                       value >= static_cast<FromType>(std::numeric_limits<ToType>::lowest()))
+                    : (value <= static_cast<FromType>(std::numeric_limits<ToType>::max()) &&
+                       value >= static_cast<FromType>(std::numeric_limits<ToType>::lowest()) &&
+                       value == static_cast<FromType>(static_cast<ToType>(value))))
+                : (std::is_signed<FromType>::value && std::is_unsigned<ToType>::value && value < 0)
+                    ? false
+                    : (static_cast<widening_float_type>(value) <= static_cast<widening_float_type>(std::numeric_limits<ToType>::max()) &&
+                       static_cast<widening_float_type>(value) >= static_cast<widening_float_type>(std::numeric_limits<ToType>::lowest()));
+        }
+
+        /**
+         * @brief Constexpr implementation of numeric cast with compile-time validation
+         */
+        template<typename ToType, typename FromType>
+        NCAST_CONSTEXPR_14 ToType numeric_cast_constexpr(FromType value) {
+            static_assert(std::is_arithmetic<ToType>::value, "ToType must be a numeric type or char");
+            static_assert(std::is_arithmetic<FromType>::value, "FromType must be a numeric type or char");
+            
+            return is_in_range<ToType>(value) 
+                ? static_cast<ToType>(value)
+                : throw cast_exception("Compile-time cast validation failed: value is out of range for target type");
+        }
+    }
+#endif // NCAST_HAS_CONSTEXPR_VALIDATION
+
+    // Forward declaration for numeric_cast_impl
+    template<typename ToType, typename FromType>
+    ToType numeric_cast_impl(FromType value, const char* file, int line, const char* function);
+
+    /**
+     * @brief Enhanced implementation with optional compile-time validation
+     */
+
+#if NCAST_HAS_CONSTEXPR_VALIDATION
+    // C++14+ version with optional compile-time validation
+    template<typename ToType, typename FromType>
+    NCAST_CONSTEXPR_14 ToType numeric_cast_enhanced(FromType value, const char* file = "unknown", int line = 0, const char* function = "unknown") {
+        // This will be evaluated at compile time for constant expressions in C++14+
+        // and at runtime otherwise. The compiler automatically chooses the right path.
+        return constexpr_validation::is_in_range<ToType>(value) 
+            ? static_cast<ToType>(value)
+            : (NCAST_ENABLE_RUNTIME_VALIDATION 
+                ? throw cast_exception("Cast validation failed: value is out of range for target type", file, line, function)
+                : static_cast<ToType>(value));
+    }
+#else
+    // C++11 fallback - runtime validation only
+    template<typename ToType, typename FromType>
+    ToType numeric_cast_enhanced(FromType value, const char* file = "unknown", int line = 0, const char* function = "unknown") {
+        return numeric_cast_impl<ToType>(value, file, line, function);
+    }
+#endif // NCAST_HAS_CONSTEXPR_VALIDATION
 
     /**
      * @brief Type trait to check if a type is a character type
@@ -320,7 +432,7 @@ namespace detail {
         static_assert(is_numeric_or_char<ToType>::value, "ToType must be a numeric type or char");
         static_assert(is_numeric_or_char<FromType>::value, "FromType must be a numeric type or char");
         
-#if !NCAST_ENABLE_VALIDATION
+#if !NCAST_ENABLE_RUNTIME_VALIDATION
         // Suppress unused parameter warnings when validation is disabled
         (void)file;
         (void)line;
@@ -335,7 +447,11 @@ namespace detail {
      * @brief Helper function to perform safe char casting with validation
      */
     template<typename ToType, typename FromType>
+#if NCAST_HAS_CONSTEXPR_VALIDATION
+    NCAST_CONSTEXPR_14 ToType char_cast_impl(FromType value, const char* /* file */, int /* line */, const char* /* function */) {
+#else
     ToType char_cast_impl(FromType value, const char* /* file */, int /* line */, const char* /* function */) {
+#endif
         static_assert(is_char_type<ToType>::value, "ToType must be a char type (char, signed char, unsigned char)");
         static_assert(is_char_type<FromType>::value, "FromType must be a char type (char, signed char, unsigned char)");
         
@@ -345,22 +461,29 @@ namespace detail {
 }
 
 /**
- * @brief Safe cast between numeric types and char with runtime validation
+ * @brief Safe cast between numeric types and char with validation
  * 
  * This function template provides safe casting between all numeric types
- * including char. It validates that the value is within the target type's range.
+ * including char. For compile-time constant values (C++14+), validation can 
+ * occur at compile time. For runtime values or C++11, validation occurs at runtime.
  * 
  * @tparam ToType Target type (must be numeric or char)
  * @tparam FromType Source type (must be numeric or char) 
  * @param value Value to cast
  * @return Safely cast value
- * @throws cast_exception if validation fails
+ * @throws cast_exception if runtime validation fails
  * 
- * Usage: auto result = numeric_cast<int>(unsigned_value);
+ * Usage: 
+ *   auto result1 = numeric_cast<int>(42U);                  // Works in all standards
+ *   constexpr auto result2 = numeric_cast<int>(42U);        // C++14+ compile-time validation
  */
 template<typename ToType, typename FromType>
+#if NCAST_HAS_CONSTEXPR_VALIDATION
+NCAST_CONSTEXPR_14 ToType numeric_cast(FromType value) {
+#else
 ToType numeric_cast(FromType value) {
-    return detail::numeric_cast_impl<ToType>(value, "unknown", 0, "unknown");
+#endif
+    return detail::numeric_cast_enhanced<ToType>(value);
 }
 
 /**
@@ -368,16 +491,23 @@ ToType numeric_cast(FromType value) {
  * 
  * This function template provides safe casting between char, signed char,
  * and unsigned char. It cannot be used with other numeric types.
+ * char_cast is always safe and can be evaluated at compile time in C++14+.
  * 
  * @tparam ToType Target char type (char, signed char, unsigned char)
  * @tparam FromType Source char type (char, signed char, unsigned char)
  * @param value Value to cast
  * @return Safely cast value
  * 
- * Usage: auto result = char_cast<unsigned char>(signed_char_value);
+ * Usage: 
+ *   auto result = char_cast<unsigned char>('A');            // Works in all standards
+ *   constexpr auto result2 = char_cast<unsigned char>('A'); // C++14+ compile-time
  */
 template<typename ToType, typename FromType>
+#if NCAST_HAS_CONSTEXPR_VALIDATION
+NCAST_CONSTEXPR_14 ToType char_cast(FromType value) {
+#else
 ToType char_cast(FromType value) {
+#endif
     return detail::char_cast_impl<ToType>(value, "unknown", 0, "unknown");
 }
 
@@ -385,20 +515,26 @@ ToType char_cast(FromType value) {
  * @brief Macro version of numeric_cast with accurate location information
  * 
  * This macro captures file, line, and function information at the call site,
- * providing accurate location details in exception messages.
+ * providing accurate location details in exception messages. Supports both
+ * compile-time validation (C++14+) and runtime validation.
  * 
- * Usage: auto result = NUMERIC_CAST(int, unsigned_value);
+ * Usage: 
+ *   auto result1 = NUMERIC_CAST(int, 42U);                 // Works in all standards
+ *   constexpr auto result2 = NUMERIC_CAST(int, 42U);       // C++14+ compile-time validation
  */
 #define NUMERIC_CAST(ToType, value) \
-    ncast::detail::numeric_cast_impl<ToType>(value, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+    ncast::detail::numeric_cast_enhanced<ToType>(value, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 /**
  * @brief Macro version of char_cast with accurate location information
  * 
  * This macro captures file, line, and function information at the call site,
- * providing accurate location details in exception messages.
+ * providing accurate location details in exception messages. Supports both
+ * compile-time evaluation (C++14+) and runtime execution.
  * 
- * Usage: auto result = CHAR_CAST(unsigned char, signed_char_value);
+ * Usage: 
+ *   auto result1 = CHAR_CAST(unsigned char, 'A');          // Works in all standards
+ *   constexpr auto result2 = CHAR_CAST(unsigned char, 'A'); // C++14+ compile-time
  */
 #define CHAR_CAST(ToType, value) \
     ncast::detail::char_cast_impl<ToType>(value, __FILE__, __LINE__, __PRETTY_FUNCTION__)

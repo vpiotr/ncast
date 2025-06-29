@@ -52,7 +52,7 @@ struct BenchmarkStats {
         std::sort(sorted_times.begin(), sorted_times.end());
         
         // Calculate average
-        average = std::accumulate(times.begin(), times.end(), 0.0) / times.size();
+        average = std::accumulate(times.begin(), times.end(), 0.0) / static_cast<double>(times.size());
         
         // Calculate median
         size_t n = sorted_times.size();
@@ -68,7 +68,7 @@ struct BenchmarkStats {
             double diff = time - average;
             sum_sq_diff += diff * diff;
         }
-        std_dev = std::sqrt(sum_sq_diff / times.size());
+        std_dev = std::sqrt(sum_sq_diff / static_cast<double>(times.size()));
         
         // Min and max
         min_time = *std::min_element(times.begin(), times.end());
@@ -185,7 +185,7 @@ std::vector<long> generate_test_data() {
 template<typename Func>
 void warmup_function(Func func, const std::vector<long>& data) {
     // Run a smaller version for warm-up
-    std::vector<long> warmup_data(data.begin(), data.begin() + std::min(size_t(1000), data.size()));
+    std::vector<long> warmup_data(data.begin(), data.begin() + static_cast<std::vector<long>::difference_type>(std::min(size_t(1000), data.size())));
     volatile double result = func(warmup_data);
     (void)result; // Suppress unused variable warning
 }
@@ -196,7 +196,7 @@ BenchmarkStats benchmark_function(const std::string& name, Func func,
                                   const std::vector<long>& data, int num_runs) {
     BenchmarkStats stats;
     stats.name = name;
-    stats.times.reserve(num_runs);
+    stats.times.reserve(static_cast<size_t>(num_runs));
     
     BenchmarkTimer timer;
     
